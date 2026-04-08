@@ -61,14 +61,17 @@ async function request(method, action, { query = {}, body, timeoutMs = APP_CONFI
     : joinUrl(APP_CONFIG.API_BASE, '');
 
   const { controller, timeout } = withTimeout(timeoutMs);
+  const isPost = method === 'POST';
+  const headers = isPost
+    // Keep Apps Script calls CORS-simple to avoid browser preflight OPTIONS.
+    ? { 'Content-Type': 'text/plain;charset=utf-8' }
+    : undefined;
 
   try {
     const response = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: method === 'POST' ? JSON.stringify(body || {}) : undefined,
+      headers,
+      body: isPost ? JSON.stringify(body || {}) : undefined,
       signal: controller.signal
     });
 
