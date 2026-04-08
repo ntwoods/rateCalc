@@ -22,7 +22,7 @@ function SnapshotSelector({
   }
 
   return (
-    <div className="control-card">
+    <div className="control-card" data-tour="snapshot-selector">
       <label htmlFor="snapshot-ref">Saved Reference</label>
       <select
         id="snapshot-ref"

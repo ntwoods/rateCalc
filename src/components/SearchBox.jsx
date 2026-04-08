@@ -18,7 +18,7 @@ function SearchBox({ value = '', onChange, delayMs = 280, disabled = false }) {
   }, [localValue, delayMs, onChange]);
 
   return (
-    <div className="control-card">
+    <div className="control-card" data-tour="product-search">
       <label htmlFor="product-search">Product Search</label>
       <div className="search-box-wrap">
         <input

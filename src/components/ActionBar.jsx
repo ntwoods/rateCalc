@@ -33,7 +33,7 @@ function ActionBar({
           />
         </div>
 
-        <div className="control-card">
+        <div className="control-card" data-tour="notes-field">
           <label htmlFor="save-notes">Notes</label>
           <input
             id="save-notes"
@@ -45,7 +45,7 @@ function ActionBar({
           />
         </div>
 
-        <div className="control-card">
+        <div className="control-card" data-tour="final-action-tag">
           <label htmlFor="final-action-tag">Final Action Tag</label>
           <select
             id="final-action-tag"
@@ -76,6 +76,7 @@ function ActionBar({
           <button
             type="button"
             className="btn"
+            data-tour="save-owner-button"
             onClick={onSaveOwner}
             disabled={saveDisabled || savingType === 'owner'}
           >
@@ -85,6 +86,7 @@ function ActionBar({
           <button
             type="button"
             className="btn"
+            data-tour="save-final-button"
             onClick={onSaveFinal}
             disabled={saveDisabled || savingType === 'final'}
           >

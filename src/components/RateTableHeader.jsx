@@ -10,14 +10,14 @@ function RateTableHeader({ tdPercent = 20 }) {
         <th>Previous List Price</th>
         <th>Previous WEF</th>
         <th>{`TD (${tdPercent}%)`}</th>
-        <th>Special Disc %</th>
+        <th data-tour="special-discount-column">Special Disc %</th>
         <th>After Special Disc</th>
-        <th>GST</th>
-        <th>Freight</th>
-        <th>CD</th>
+        <th data-tour="gst-column">GST</th>
+        <th data-tour="freight-column">Freight</th>
+        <th data-tour="cd-column">CD</th>
         <th>CD %</th>
         <th>Final Rate</th>
-        <th>Owner Select</th>
+        <th data-tour="owner-row-actions">Owner Select</th>
         <th>Final Action Select</th>
         <th>History Info</th>
       </tr>

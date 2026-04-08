@@ -99,7 +99,7 @@ function PartySelector({
   }
 
   return (
-    <div className="control-card party-selector" ref={rootRef}>
+    <div className="control-card party-selector" ref={rootRef} data-tour="party-selector">
       <label htmlFor="party-selector-input">Party</label>
 
       <div className="combo-box">

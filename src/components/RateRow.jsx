@@ -4,8 +4,12 @@ import { calculateRowRate } from '../utils/calcEngine';
 import { formatCurrencyINR, formatDate, safeText } from '../utils/formatters';
 import HistoryBadge from './HistoryBadge';
 
+function normalizeActionTag(actionTag) {
+  return String(actionTag || '').trim().toUpperCase();
+}
+
 function rowHighlightClass(actionTag, hasSnapshot) {
-  const normalized = String(actionTag || '').trim().toUpperCase();
+  const normalized = normalizeActionTag(actionTag);
 
   if (normalized === 'OWNER_APPROVED') {
     return hasSnapshot ? 'rate-row--snapshot-owner' : 'rate-row--history-owner';
@@ -16,6 +20,18 @@ function rowHighlightClass(actionTag, hasSnapshot) {
   }
 
   return hasSnapshot ? 'rate-row--snapshot-neutral' : 'rate-row--history-neutral';
+}
+
+function hasSpecialDiscountDispatch({
+  actionTag,
+  specialDiscPct
+}) {
+  if (normalizeActionTag(actionTag) !== 'DISPATCHED') {
+    return false;
+  }
+
+  const discount = Number(specialDiscPct);
+  return Number.isFinite(discount) && discount > 0;
 }
 
 function RateRow({
@@ -70,12 +86,28 @@ function RateRow({
     ? rowHighlightClass(actionForHighlight, snapshotActive && Boolean(snapshotItem))
     : '';
 
+  const specialDiscountDispatched = snapshotActive && snapshotItem
+    ? hasSpecialDiscountDispatch({
+        actionTag: snapshotItem.actionTag,
+        specialDiscPct: snapshotItem.specialDiscPct
+      })
+    : hasSpecialDiscountDispatch({
+        actionTag: historyItem?.lastActionTag,
+        specialDiscPct: historyItem?.lastSpecialDiscPct
+      });
+
+  const rowClassName = `${highlightClass} ${specialDiscountDispatched ? 'rate-row--dispatched-special' : ''}`.trim();
+
   const historySummary = historyItem
-    ? `${safeText(historyItem.lastGSTMode, '-')}/${safeText(historyItem.lastCDMode, '-')} @ ${historyItem.lastSpecialDiscPct ?? 0}%`
+    ? `${safeText(historyItem.lastGSTMode, '-')}/${safeText(historyItem.lastFreightMode, '-')}/${safeText(historyItem.lastCDMode, '-')} @ ${historyItem.lastSpecialDiscPct ?? 0}%`
+    : '';
+
+  const snapshotSummary = snapshotItem
+    ? `${safeText(snapshotItem.gstMode, '-')}/${safeText(snapshotItem.freightMode, '-')}/${safeText(snapshotItem.cdMode, '-')} @ ${snapshotItem.specialDiscPct ?? 0}%`
     : '';
 
   return (
-    <tr className={highlightClass}>
+    <tr className={rowClassName}>
       <td className="cell-strong">{product.category}</td>
       <td className="cell-product">{product.product}</td>
       <td>
@@ -188,6 +220,8 @@ function RateRow({
             <HistoryBadge actionTag={snapshotItem.actionTag} compact />
             <span>{formatDate(snapshotItem.snapshotDateTime, { dateStyle: 'medium' })}</span>
             <span>{formatCurrencyINR(snapshotItem.finalRate)}</span>
+            <span>{snapshotSummary}</span>
+            {specialDiscountDispatched ? <span className="history-status-pill">Special Discount Dispatched</span> : null}
           </div>
         ) : historyItem ? (
           <div className="history-cell">
@@ -195,6 +229,7 @@ function RateRow({
             <span>{formatDate(historyItem.lastTimestamp, { dateStyle: 'medium' })}</span>
             <span>{formatCurrencyINR(historyItem.lastFinalRate)}</span>
             <span>{historySummary}</span>
+            {specialDiscountDispatched ? <span className="history-status-pill">Special Discount Dispatched</span> : null}
           </div>
         ) : (
           <span className="cell-subtle">No history</span>

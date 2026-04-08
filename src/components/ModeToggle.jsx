@@ -3,7 +3,7 @@ import { APP_MODES } from '../constants/appConfig';
 
 function ModeToggle({ value = APP_MODES.FRESH, onChange, disabled = false }) {
   return (
-    <div className="mode-toggle" role="group" aria-label="Calculation mode">
+    <div className="mode-toggle" role="group" aria-label="Calculation mode" data-tour="mode-toggle">
       <button
         type="button"
         className={`mode-toggle__btn ${value === APP_MODES.FRESH ? 'mode-toggle__btn--active' : ''}`}

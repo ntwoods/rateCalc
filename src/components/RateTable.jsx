@@ -59,7 +59,7 @@ function RateTable({
   }
 
   return (
-    <div className="rate-table-wrap">
+    <div className="rate-table-wrap" data-tour="rate-grid">
       <table className="rate-table">
         <RateTableHeader tdPercent={tdPercent} />
         <tbody>
