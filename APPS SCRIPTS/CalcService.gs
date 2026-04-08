@@ -1,15 +1,20 @@
 var CalcService = (function () {
   // Pure calculation layer. No spreadsheet I/O should happen in this service.
-  const GST_MODE_ALLOWED = CONFIG.ENUMS.GST_MODES;
-  const FREIGHT_MODE_ALLOWED = CONFIG.ENUMS.FREIGHT_MODES;
-  const CD_MODE_ALLOWED = CONFIG.ENUMS.CD_MODES;
-  const PAYMENT_TERMS_ALLOWED = CONFIG.ENUMS.PAYMENT_TERMS;
-  const GST_MODE_PAID = CONFIG.ENUM_VALUES.GST_MODE_PAID;
-  const GST_MODE_EXTRA = CONFIG.ENUM_VALUES.GST_MODE_EXTRA;
-  const CD_MODE_NET_RATES = CONFIG.ENUM_VALUES.CD_MODE_NET_RATES;
-  const CD_MODE_PERCENT = CONFIG.ENUM_VALUES.CD_MODE_PERCENT;
+  function getEnumConfig_() {
+    return {
+      GST_MODE_ALLOWED: CONFIG.ENUMS.GST_MODES,
+      FREIGHT_MODE_ALLOWED: CONFIG.ENUMS.FREIGHT_MODES,
+      CD_MODE_ALLOWED: CONFIG.ENUMS.CD_MODES,
+      PAYMENT_TERMS_ALLOWED: CONFIG.ENUMS.PAYMENT_TERMS,
+      GST_MODE_PAID: CONFIG.ENUM_VALUES.GST_MODE_PAID,
+      GST_MODE_EXTRA: CONFIG.ENUM_VALUES.GST_MODE_EXTRA,
+      CD_MODE_NET_RATES: CONFIG.ENUM_VALUES.CD_MODE_NET_RATES,
+      CD_MODE_PERCENT: CONFIG.ENUM_VALUES.CD_MODE_PERCENT
+    };
+  }
 
   function calculateItemRate(input, settings) {
+    const enumConfig = getEnumConfig_();
     const normalizedInput = normalizeEnums(input || {});
     const validation = validateRateInput(normalizedInput);
     if (!validation.ok) {
@@ -29,11 +34,11 @@ var CalcService = (function () {
     const afterSpecialDiscRate = round2(tdRate * (1 - specialDiscPct / 100));
 
     const gstPercent = getGstPercent(paymentTerms, normalizedSettings);
-    const gstAmount = gstMode === GST_MODE_PAID
+    const gstAmount = gstMode === enumConfig.GST_MODE_PAID
       ? round2(afterSpecialDiscRate * (gstPercent / 100))
       : 0;
 
-    const appliedCdPercent = cdMode === CD_MODE_NET_RATES
+    const appliedCdPercent = cdMode === enumConfig.CD_MODE_NET_RATES
       ? normalizedSettings.defaultNetCdPercent
       : validation.input.cdPercent;
 
@@ -41,9 +46,9 @@ var CalcService = (function () {
     let cdLessRate = null;
     let netEquivalent = null;
 
-    if (gstMode === GST_MODE_EXTRA && cdMode === CD_MODE_PERCENT) {
+    if (gstMode === enumConfig.GST_MODE_EXTRA && cdMode === enumConfig.CD_MODE_PERCENT) {
       finalRate = afterSpecialDiscRate;
-    } else if (gstMode === GST_MODE_EXTRA && cdMode === CD_MODE_NET_RATES) {
+    } else if (gstMode === enumConfig.GST_MODE_EXTRA && cdMode === enumConfig.CD_MODE_NET_RATES) {
       const denominator = 1 - appliedCdPercent / 100;
       if (denominator <= 0) {
         throw appError('CD_PERCENT_INVALID', 'Applied CD percent must be less than 100 for NET_RATES.', [
@@ -51,7 +56,7 @@ var CalcService = (function () {
         ]);
       }
       finalRate = round2(afterSpecialDiscRate * denominator);
-    } else if (gstMode === GST_MODE_PAID && cdMode === CD_MODE_NET_RATES) {
+    } else if (gstMode === enumConfig.GST_MODE_PAID && cdMode === enumConfig.CD_MODE_NET_RATES) {
       const denominator = 1 - appliedCdPercent / 100;
       if (denominator <= 0) {
         throw appError('CD_PERCENT_INVALID', 'Applied CD percent must be less than 100 for NET_RATES.', [
@@ -60,7 +65,7 @@ var CalcService = (function () {
       }
       cdLessRate = round2(afterSpecialDiscRate * denominator);
       finalRate = round2(cdLessRate + gstAmount);
-    } else if (gstMode === GST_MODE_PAID && cdMode === CD_MODE_PERCENT) {
+    } else if (gstMode === enumConfig.GST_MODE_PAID && cdMode === enumConfig.CD_MODE_PERCENT) {
       const denominator = 1 - appliedCdPercent / 100;
       if (denominator <= 0) {
         throw appError('CD_PERCENT_INVALID', 'cdPercent must be less than 100 for PAID + PERCENT mode.', [
@@ -92,18 +97,20 @@ var CalcService = (function () {
   }
 
   function getGstPercent(paymentTerms, settings) {
+    const enumConfig = getEnumConfig_();
     const normalizedSettings = normalizeSettings_(settings || {});
     const terms = toSafeNumber(paymentTerms, null);
-    if (terms === PAYMENT_TERMS_ALLOWED[0]) {
+    if (terms === enumConfig.PAYMENT_TERMS_ALLOWED[0]) {
       return round2(normalizedSettings.gst15);
     }
-    if (terms === PAYMENT_TERMS_ALLOWED[1]) {
+    if (terms === enumConfig.PAYMENT_TERMS_ALLOWED[1]) {
       return round2(normalizedSettings.gst30);
     }
     return 0;
   }
 
   function validateRateInput(input) {
+    const enumConfig = getEnumConfig_();
     const errors = [];
     const normalizedInput = normalizeEnums(input || {});
 
@@ -113,7 +120,7 @@ var CalcService = (function () {
     }
 
     const paymentTerms = toSafeNumber(readAny_(normalizedInput, ['paymentTerms', 'paymentterms']), null);
-    if (PAYMENT_TERMS_ALLOWED.indexOf(paymentTerms) < 0) {
+    if (enumConfig.PAYMENT_TERMS_ALLOWED.indexOf(paymentTerms) < 0) {
       errors.push({ field: 'paymentTerms', detail: 'paymentTerms must be 15 or 30.' });
     }
 
@@ -123,22 +130,22 @@ var CalcService = (function () {
     }
 
     const gstMode = readAny_(normalizedInput, ['gstMode', 'GSTMode']);
-    if (GST_MODE_ALLOWED.indexOf(gstMode) < 0) {
-      errors.push({ field: 'GSTMode', detail: 'GSTMode must be one of: ' + GST_MODE_ALLOWED.join(', ') });
+    if (enumConfig.GST_MODE_ALLOWED.indexOf(gstMode) < 0) {
+      errors.push({ field: 'GSTMode', detail: 'GSTMode must be one of: ' + enumConfig.GST_MODE_ALLOWED.join(', ') });
     }
 
     const freightMode = readAny_(normalizedInput, ['freightMode', 'FreightMode']);
-    if (FREIGHT_MODE_ALLOWED.indexOf(freightMode) < 0) {
-      errors.push({ field: 'FreightMode', detail: 'FreightMode must be one of: ' + FREIGHT_MODE_ALLOWED.join(', ') });
+    if (enumConfig.FREIGHT_MODE_ALLOWED.indexOf(freightMode) < 0) {
+      errors.push({ field: 'FreightMode', detail: 'FreightMode must be one of: ' + enumConfig.FREIGHT_MODE_ALLOWED.join(', ') });
     }
 
     const cdMode = readAny_(normalizedInput, ['cdMode', 'CDMode']);
-    if (CD_MODE_ALLOWED.indexOf(cdMode) < 0) {
-      errors.push({ field: 'CDMode', detail: 'CDMode must be one of: ' + CD_MODE_ALLOWED.join(', ') });
+    if (enumConfig.CD_MODE_ALLOWED.indexOf(cdMode) < 0) {
+      errors.push({ field: 'CDMode', detail: 'CDMode must be one of: ' + enumConfig.CD_MODE_ALLOWED.join(', ') });
     }
 
     let cdPercent = null;
-    if (cdMode === CD_MODE_PERCENT) {
+    if (cdMode === enumConfig.CD_MODE_PERCENT) {
       cdPercent = toSafeNumber(readAny_(normalizedInput, ['cdPercent', 'cdpercent']), null);
       if (cdPercent === null || cdPercent < 0) {
         errors.push({ field: 'cdPercent', detail: 'cdPercent must be numeric and >= 0 when CDMode=PERCENT.' });
