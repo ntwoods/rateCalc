@@ -5,6 +5,28 @@
   color: #0f2a44;
   background-color: #f4f8fd;
 
+  --portal-bg: linear-gradient(180deg, #f7fbff 0%, #edf4fc 100%);
+  --portal-text: #16324f;
+  --theme-surface-1: #ffffff;
+  --theme-surface-2: #fbfdff;
+  --theme-surface-3: #f4f9ff;
+  --theme-border-1: #d6e3f3;
+  --theme-border-2: #c7d9ee;
+  --theme-text-1: #133d64;
+  --theme-text-2: #3f6587;
+  --theme-accent: #1f5f95;
+  --theme-accent-strong: #184d78;
+  --theme-accent-contrast: #ffffff;
+  --theme-table-head-bg: #edf5ff;
+  --theme-table-head-text: #1d4468;
+  --theme-table-grid: #d7e5f5;
+  --theme-table-row-even: #fcfdff;
+  --theme-table-row-hover: #f2f8ff;
+  --theme-chip-bg: #f3f8ff;
+  --theme-chip-text: #2c567d;
+  --theme-shadow: 0 8px 24px rgba(16, 52, 86, 0.12);
+  --theme-gloss: linear-gradient(120deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 50%);
+
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -22,8 +44,105 @@ body,
 }
 
 body {
-  background: linear-gradient(180deg, #f9fcff 0%, #eef5fd 100%);
-  color: #16324f;
+  background: var(--portal-bg);
+  color: var(--portal-text);
+  transition: background 320ms ease, color 220ms ease;
+}
+
+body[data-theme='default'] {
+  --portal-bg: radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.92) 0%, rgba(237, 245, 253, 0.86) 45%, rgba(231, 240, 250, 0.9) 100%);
+  --portal-text: #16324f;
+  --theme-surface-1: #ffffff;
+  --theme-surface-2: #fafdff;
+  --theme-surface-3: #f1f7ff;
+  --theme-border-1: #d6e3f3;
+  --theme-border-2: #bfd3ea;
+  --theme-text-1: #113a61;
+  --theme-text-2: #46698a;
+  --theme-accent: #1f5f95;
+  --theme-accent-strong: #143f67;
+  --theme-accent-contrast: #ffffff;
+  --theme-table-head-bg: #eaf3ff;
+  --theme-table-head-text: #173e64;
+  --theme-table-grid: #d5e4f5;
+  --theme-table-row-even: #fcfdff;
+  --theme-table-row-hover: #f2f7ff;
+  --theme-chip-bg: #f4f8ff;
+  --theme-chip-text: #2d567a;
+  --theme-shadow: 0 10px 28px rgba(11, 39, 67, 0.15);
+  --theme-gloss: linear-gradient(120deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0) 80%);
+}
+
+body[data-theme='sunset'] {
+  --portal-bg: linear-gradient(145deg, #fff3df 0%, #ffd4ba 38%, #f5b5a2 62%, #f3cbc8 100%);
+  --portal-text: #3b2536;
+  --theme-surface-1: rgba(255, 250, 244, 0.92);
+  --theme-surface-2: rgba(255, 245, 236, 0.92);
+  --theme-surface-3: rgba(255, 238, 227, 0.9);
+  --theme-border-1: #e7bba6;
+  --theme-border-2: #dba48b;
+  --theme-text-1: #4c2f43;
+  --theme-text-2: #6d4a5c;
+  --theme-accent: #c35a3c;
+  --theme-accent-strong: #9f452d;
+  --theme-accent-contrast: #fff7f2;
+  --theme-table-head-bg: rgba(255, 228, 210, 0.94);
+  --theme-table-head-text: #5c2f32;
+  --theme-table-grid: #e4c1b1;
+  --theme-table-row-even: rgba(255, 251, 247, 0.96);
+  --theme-table-row-hover: rgba(255, 239, 229, 0.95);
+  --theme-chip-bg: rgba(255, 237, 224, 0.95);
+  --theme-chip-text: #5b3f47;
+  --theme-shadow: 0 12px 30px rgba(117, 59, 48, 0.18);
+  --theme-gloss: linear-gradient(120deg, rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0.05) 56%, rgba(255, 255, 255, 0) 85%);
+}
+
+body[data-theme='nt-wood'] {
+  --portal-bg: linear-gradient(135deg, #f4e8d7 0%, #ddc4a1 40%, #cda87e 72%, #b98e66 100%);
+  --portal-text: #332418;
+  --theme-surface-1: rgba(252, 244, 233, 0.94);
+  --theme-surface-2: rgba(246, 234, 218, 0.92);
+  --theme-surface-3: rgba(238, 223, 203, 0.9);
+  --theme-border-1: #d2b08c;
+  --theme-border-2: #bb9571;
+  --theme-text-1: #3d2b1e;
+  --theme-text-2: #6a4e39;
+  --theme-accent: #8e5a34;
+  --theme-accent-strong: #6f4528;
+  --theme-accent-contrast: #fff8ef;
+  --theme-table-head-bg: rgba(233, 211, 186, 0.92);
+  --theme-table-head-text: #513521;
+  --theme-table-grid: #d7b996;
+  --theme-table-row-even: rgba(251, 242, 230, 0.94);
+  --theme-table-row-hover: rgba(242, 223, 198, 0.93);
+  --theme-chip-bg: rgba(241, 224, 200, 0.93);
+  --theme-chip-text: #573c28;
+  --theme-shadow: 0 12px 30px rgba(69, 47, 29, 0.2);
+  --theme-gloss: linear-gradient(120deg, rgba(255, 250, 242, 0.28) 0%, rgba(255, 250, 242, 0) 58%);
+}
+
+body[data-theme='aurora'] {
+  --portal-bg: linear-gradient(145deg, #e6fff8 0%, #c9f6ec 35%, #b8e7f2 70%, #d2d8ff 100%);
+  --portal-text: #18384d;
+  --theme-surface-1: rgba(246, 255, 252, 0.94);
+  --theme-surface-2: rgba(236, 252, 248, 0.92);
+  --theme-surface-3: rgba(228, 248, 245, 0.9);
+  --theme-border-1: #b8ddd7;
+  --theme-border-2: #9fc8cf;
+  --theme-text-1: #1a4a5f;
+  --theme-text-2: #4d7187;
+  --theme-accent: #1b7d88;
+  --theme-accent-strong: #145f69;
+  --theme-accent-contrast: #f6ffff;
+  --theme-table-head-bg: rgba(213, 241, 243, 0.92);
+  --theme-table-head-text: #1a4f63;
+  --theme-table-grid: #c7e2e7;
+  --theme-table-row-even: rgba(245, 255, 255, 0.94);
+  --theme-table-row-hover: rgba(228, 248, 248, 0.92);
+  --theme-chip-bg: rgba(222, 247, 245, 0.92);
+  --theme-chip-text: #2b5d69;
+  --theme-shadow: 0 12px 30px rgba(18, 72, 87, 0.16);
+  --theme-gloss: linear-gradient(120deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0) 85%);
 }
 
 button,

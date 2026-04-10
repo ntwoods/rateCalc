@@ -84,3 +84,10 @@ export const CD_MODES = Object.freeze({
   NET_RATES: 'NET_RATES',
   PERCENT: 'PERCENT'
 });
+
+export const PORTAL_THEMES = Object.freeze({
+  DEFAULT: 'default',
+  SUNSET: 'sunset',
+  NT_WOOD: 'nt-wood',
+  AURORA: 'aurora'
+});

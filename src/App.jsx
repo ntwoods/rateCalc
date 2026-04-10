@@ -23,11 +23,26 @@ import {
   APP_CONFIG,
   APP_MODES,
   BACKEND_STATUS,
+  PORTAL_THEMES,
   RATE_BASIS,
   SNAPSHOT_VIEW_MODES
 } from './constants/appConfig';
 import { formatDate, safeText, toNumberOrZero } from './utils/formatters';
 import './styles/app.css';
+
+const THEME_STORAGE_KEY = 'portal_theme';
+
+function getInitialTheme() {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (Object.values(PORTAL_THEMES).includes(raw)) {
+      return raw;
+    }
+  } catch (error) {
+    // Ignore storage unavailability and fallback to default theme.
+  }
+  return PORTAL_THEMES.DEFAULT;
+}
 
 function App() {
   const auth = useAuth();
@@ -51,6 +66,7 @@ function App() {
   const [productSearch, setProductSearch] = useState('');
   const [snapshotViewMode, setSnapshotViewMode] = useState(SNAPSHOT_VIEW_MODES.OVERLAY);
   const [rateBasis, setRateBasis] = useState(RATE_BASIS.LATEST);
+  const [theme, setTheme] = useState(getInitialTheme);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
 
   const {
@@ -130,6 +146,15 @@ function App() {
     setContextPanelOpen(true);
   }, [selectedSnapshotRef]);
 
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+      // Ignore storage failures.
+    }
+  }, [theme]);
+
   const signedInEmail = String(auth.user?.email || '').trim();
   const partyCount = toNumberOrZero(parties.length);
   const toolbarDisabled = status !== BACKEND_STATUS.CONNECTED;
@@ -167,6 +192,15 @@ function App() {
       };
     });
   }, [snapshotRefs]);
+
+  const themeOptions = useMemo(() => {
+    return [
+      { value: PORTAL_THEMES.DEFAULT, label: 'Default Gloss' },
+      { value: PORTAL_THEMES.SUNSET, label: 'Sunset' },
+      { value: PORTAL_THEMES.NT_WOOD, label: 'NT Wood' },
+      { value: PORTAL_THEMES.AURORA, label: 'Aurora Mint' }
+    ];
+  }, []);
 
   const handleAfterSave = useCallback(async ({
     type,
@@ -212,10 +246,24 @@ function App() {
   const rateBasisText = rateBasis === RATE_BASIS.LATEST ? 'Latest List Visible' : 'Old List Visible';
 
   return (
-    <>
+    <div className={`theme-root theme-${theme}`}>
       <AppShell
         topBar={(
           <TopBar
+            themeNode={(
+              <div className="theme-switcher">
+                <label htmlFor="theme-select">Theme</label>
+                <select
+                  id="theme-select"
+                  value={theme}
+                  onChange={(event) => setTheme(event.target.value)}
+                >
+                  {themeOptions.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             statusNode={(
               <div className="top-bar__status-group">
                 <span className="backend-pill">{status.toUpperCase()}</span>
@@ -438,7 +486,7 @@ function App() {
         message={saveFlow.feedback.message}
         onClose={saveFlow.clearFeedback}
       />
-    </>
+    </div>
   );
 }
 

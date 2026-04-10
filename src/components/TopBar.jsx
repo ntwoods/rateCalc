@@ -1,12 +1,13 @@
 import { memo } from 'react';
 import { APP_CONFIG } from '../constants/appConfig';
 
-function TopBar({ statusNode, userNode }) {
+function TopBar({ statusNode, userNode, themeNode }) {
   return (
     <header className="top-bar" role="banner" data-tour="portal-header">
       <div className="top-bar__brand">
         <h1 className="top-bar__title">{APP_CONFIG.APP_NAME}</h1>
         <p className="top-bar__subtitle">Internal Rate Workflow Console</p>
+        {themeNode ? <div className="top-bar__brand-controls">{themeNode}</div> : null}
       </div>
 
       <div className="top-bar__status">{statusNode}</div>
