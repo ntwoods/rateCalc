@@ -18,7 +18,7 @@ function RateTableHeader({ tdPercent = 20 }) {
         <th>CD %</th>
         <th>Final Rate</th>
         <th data-tour="owner-row-actions">Owner Select</th>
-        <th>Final Action Select</th>
+        <th>Party Agreed Select</th>
         <th>History Info</th>
       </tr>
     </thead>

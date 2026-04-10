@@ -31,8 +31,7 @@ function validateBeforeSave({
   rows,
   selectedParty,
   isAuthenticated,
-  signedInEmail,
-  finalActionTag
+  signedInEmail
 }) {
   if (!selectedParty) {
     return 'Select a party before saving.';
@@ -45,14 +44,7 @@ function validateBeforeSave({
   if (!Array.isArray(rows) || rows.length === 0) {
     return type === 'owner'
       ? 'Select at least one Owner row to save.'
-      : 'Select at least one Final Action row to save.';
-  }
-
-  if (
-    type === 'final' &&
-    !Object.values(FINAL_ACTION_TAGS).includes(String(finalActionTag || '').toUpperCase())
-  ) {
-    return 'Choose a valid final action tag (PARTY_AGREED or DISPATCHED).';
+      : 'Select at least one Party Agreed row to save.';
   }
 
   const categoryDiscounts = {};
@@ -88,8 +80,6 @@ export function useSaveFlow({
   mode,
   onAfterSave
 }) {
-  const [notes, setNotes] = useState('');
-  const [finalActionTag, setFinalActionTag] = useState(FINAL_ACTION_TAGS.PARTY_AGREED);
   const [savingType, setSavingType] = useState('');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [confirmState, setConfirmState] = useState(INITIAL_CONFIRM_STATE);
@@ -110,8 +100,7 @@ export function useSaveFlow({
       rows,
       selectedParty,
       isAuthenticated,
-      signedInEmail,
-      finalActionTag
+      signedInEmail
     });
 
     if (validationError) {
@@ -124,18 +113,17 @@ export function useSaveFlow({
       type,
       rows,
       confirmationRows: buildConfirmationRows(rows),
-      title: type === 'owner' ? 'Confirm Owner Approved Save' : 'Confirm Final Action Save',
+      title: type === 'owner' ? 'Confirm Owner Approved Save' : 'Confirm Party Agreed Save',
       confirmLabel:
         type === 'owner'
           ? 'Yes, Save Owner Approved'
-          : `Yes, Save ${String(finalActionTag).toUpperCase()}`
+          : 'Yes, Save Party Agreed'
     });
   }, [
     selectedRowsByType,
     selectedParty,
     isAuthenticated,
-    signedInEmail,
-    finalActionTag
+    signedInEmail
   ]);
 
   const closeConfirm = useCallback(() => {
@@ -158,7 +146,7 @@ export function useSaveFlow({
     let payload = buildOwnerApprovalPayload({
       partyName: selectedParty,
       userEmail: signedInEmail,
-      notes,
+      notes: '',
       sourceMode,
       selectedRows: confirmState.rows
     });
@@ -168,9 +156,9 @@ export function useSaveFlow({
       payload = buildFinalActionPayload({
         partyName: selectedParty,
         userEmail: signedInEmail,
-        notes,
+        notes: '',
         sourceMode,
-        actionTag: finalActionTag,
+        actionTag: FINAL_ACTION_TAGS.PARTY_AGREED,
         selectedRows: confirmState.rows
       });
     }
@@ -205,17 +193,11 @@ export function useSaveFlow({
     mode,
     selectedParty,
     signedInEmail,
-    notes,
-    finalActionTag,
     onAfterSave
   ]);
 
   const saveState = useMemo(() => {
     return {
-      notes,
-      setNotes,
-      finalActionTag,
-      setFinalActionTag,
       savingType,
       feedback,
       clearFeedback,
@@ -225,8 +207,6 @@ export function useSaveFlow({
       handleConfirmSave
     };
   }, [
-    notes,
-    finalActionTag,
     savingType,
     feedback,
     clearFeedback,
@@ -238,4 +218,3 @@ export function useSaveFlow({
 
   return saveState;
 }
-

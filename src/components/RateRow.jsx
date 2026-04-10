@@ -210,7 +210,7 @@ function RateRow({
           type="checkbox"
           checked={Boolean(rowInput?.finalActionChecked)}
           onChange={(event) => actions.setFinalActionChecked(rowKey, product.category, event.target.checked)}
-          aria-label={`Final action select ${product.product}`}
+          aria-label={`Party agreed select ${product.product}`}
         />
       </td>
 

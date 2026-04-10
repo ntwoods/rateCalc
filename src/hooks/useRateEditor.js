@@ -11,12 +11,12 @@ function getDefaultNetCd(settings) {
   return '5';
 }
 
-function createDefaultRowInput(defaultNetCd, categoryDiscountValue) {
+function createDefaultRowInput(defaultNetCd, categoryDefaults = {}) {
   return {
-    specialDiscPctInput: categoryDiscountValue ?? '0',
-    gstMode: GST_MODES.EXTRA,
-    freightMode: FREIGHT_MODES.FOR,
-    cdMode: CD_MODES.NET_RATES,
+    specialDiscPctInput: categoryDefaults.specialDiscPctInput ?? '0',
+    gstMode: categoryDefaults.gstMode ?? GST_MODES.EXTRA,
+    freightMode: categoryDefaults.freightMode ?? FREIGHT_MODES.FOR,
+    cdMode: categoryDefaults.cdMode ?? CD_MODES.NET_RATES,
     cdPercentInput: defaultNetCd,
     ownerChecked: false,
     finalActionChecked: false
@@ -41,6 +41,9 @@ function toBool(value) {
 export function useRateEditor({ products = [], settings = {} } = {}) {
   const [rowInputsByKey, setRowInputsByKey] = useState({});
   const [categoryDiscountByKey, setCategoryDiscountByKey] = useState({});
+  const [categoryGstModeByKey, setCategoryGstModeByKey] = useState({});
+  const [categoryFreightModeByKey, setCategoryFreightModeByKey] = useState({});
+  const [categoryCdModeByKey, setCategoryCdModeByKey] = useState({});
 
   const defaultNetCd = useMemo(() => getDefaultNetCd(settings), [settings]);
 
@@ -55,8 +58,19 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
       return prev[rowKey];
     }
 
-    return createDefaultRowInput(defaultNetCd, categoryDiscountByKey[categoryKey]);
-  }, [defaultNetCd, categoryDiscountByKey]);
+    return createDefaultRowInput(defaultNetCd, {
+      specialDiscPctInput: categoryDiscountByKey[categoryKey],
+      gstMode: categoryGstModeByKey[categoryKey],
+      freightMode: categoryFreightModeByKey[categoryKey],
+      cdMode: categoryCdModeByKey[categoryKey]
+    });
+  }, [
+    defaultNetCd,
+    categoryDiscountByKey,
+    categoryGstModeByKey,
+    categoryFreightModeByKey,
+    categoryCdModeByKey
+  ]);
 
   useEffect(() => {
     if (!Array.isArray(products) || products.length === 0) {
@@ -71,34 +85,66 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
         const rowKey = getRowKey(product);
         const categoryKey = getCategoryKey(product.category);
         const categoryDiscount = categoryDiscountByKey[categoryKey];
+        const categoryGstMode = categoryGstModeByKey[categoryKey];
+        const categoryFreightMode = categoryFreightModeByKey[categoryKey];
+        const categoryCdMode = categoryCdModeByKey[categoryKey];
 
         if (!next[rowKey]) {
           if (!changed) {
             next = { ...prev };
             changed = true;
           }
-          next[rowKey] = createDefaultRowInput(defaultNetCd, categoryDiscount);
+          next[rowKey] = createDefaultRowInput(defaultNetCd, {
+            specialDiscPctInput: categoryDiscount,
+            gstMode: categoryGstMode,
+            freightMode: categoryFreightMode,
+            cdMode: categoryCdMode
+          });
           return;
         }
 
-        if (
-          categoryDiscount !== undefined &&
-          next[rowKey].specialDiscPctInput !== categoryDiscount
-        ) {
+        const current = next[rowKey];
+        const patch = {};
+        if (categoryDiscount !== undefined && current.specialDiscPctInput !== categoryDiscount) {
+          patch.specialDiscPctInput = categoryDiscount;
+        }
+        if (categoryGstMode !== undefined && current.gstMode !== categoryGstMode) {
+          patch.gstMode = categoryGstMode;
+        }
+        if (categoryFreightMode !== undefined && current.freightMode !== categoryFreightMode) {
+          patch.freightMode = categoryFreightMode;
+        }
+        if (categoryCdMode !== undefined && current.cdMode !== categoryCdMode) {
+          patch.cdMode = categoryCdMode;
+          if (categoryCdMode === CD_MODES.PERCENT && String(current.cdPercentInput || '').trim() === '') {
+            patch.cdPercentInput = defaultNetCd;
+          }
+        }
+
+        if (Object.keys(patch).length > 0) {
           if (!changed) {
             next = { ...prev };
             changed = true;
           }
           next[rowKey] = {
             ...next[rowKey],
-            specialDiscPctInput: categoryDiscount
+            ...patch
           };
         }
       });
 
       return changed ? next : prev;
     });
-  }, [products, defaultNetCd, getRowKey, getCategoryKey, categoryDiscountByKey]);
+  }, [
+    products,
+    defaultNetCd,
+    getRowKey,
+    getCategoryKey,
+    categoryDiscountByKey,
+    categoryGstModeByKey,
+    categoryFreightModeByKey,
+    categoryCdModeByKey
+  ]);
 
   const updateField = useCallback((rowKey, categoryKey, field, value) => {
     setRowInputsByKey((prev) => {
@@ -174,22 +220,78 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
 
   const setCdMode = useCallback((rowKey, category, nextMode) => {
     const categoryKey = getCategoryKey(category);
+    const modeValue = String(nextMode || '').trim().toUpperCase();
+
+    setCategoryCdModeByKey((prev) => {
+      if (prev[categoryKey] === modeValue) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [categoryKey]: modeValue
+      };
+    });
 
     setRowInputsByKey((prev) => {
-      const current = ensureRow(prev, rowKey, categoryKey);
-      const patch = { cdMode: nextMode };
+      let changed = false;
+      let next = prev;
 
-      if (nextMode === CD_MODES.PERCENT && String(current.cdPercentInput || '').trim() === '') {
+      Object.keys(prev).forEach((key) => {
+        if (!key.startsWith(`${categoryKey}|`)) {
+          return;
+        }
+        const current = prev[key];
+        const patch = {};
+
+        if (current.cdMode !== modeValue) {
+          patch.cdMode = modeValue;
+        }
+        if (
+          modeValue === CD_MODES.PERCENT &&
+          String(current.cdPercentInput || '').trim() === ''
+        ) {
+          patch.cdPercentInput = defaultNetCd;
+        }
+
+        if (Object.keys(patch).length === 0) {
+          return;
+        }
+
+        if (!changed) {
+          next = { ...prev };
+          changed = true;
+        }
+
+        next[key] = {
+          ...current,
+          ...patch
+        };
+      });
+
+      const currentRow = ensureRow(next, rowKey, categoryKey);
+      const patch = {};
+      if (currentRow.cdMode !== modeValue) {
+        patch.cdMode = modeValue;
+      }
+      if (
+        modeValue === CD_MODES.PERCENT &&
+        String(currentRow.cdPercentInput || '').trim() === ''
+      ) {
         patch.cdPercentInput = defaultNetCd;
       }
 
-      return {
-        ...prev,
-        [rowKey]: {
-          ...current,
-          ...patch
+      if (Object.keys(patch).length > 0) {
+        if (!changed) {
+          next = { ...next };
+          changed = true;
         }
-      };
+        next[rowKey] = {
+          ...currentRow,
+          ...patch
+        };
+      }
+
+      return changed ? next : prev;
     });
   }, [defaultNetCd, ensureRow, getCategoryKey]);
 
@@ -202,12 +304,114 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
   }, [updateField, getCategoryKey]);
 
   const setGstMode = useCallback((rowKey, category, value) => {
-    updateField(rowKey, getCategoryKey(category), 'gstMode', String(value || ''));
-  }, [updateField, getCategoryKey]);
+    const categoryKey = getCategoryKey(category);
+    const nextValue = String(value || '').trim().toUpperCase();
+
+    setCategoryGstModeByKey((prev) => {
+      if (prev[categoryKey] === nextValue) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [categoryKey]: nextValue
+      };
+    });
+
+    setRowInputsByKey((prev) => {
+      let changed = false;
+      let next = prev;
+
+      Object.keys(prev).forEach((key) => {
+        if (!key.startsWith(`${categoryKey}|`)) {
+          return;
+        }
+
+        const current = prev[key];
+        if (current.gstMode === nextValue) {
+          return;
+        }
+
+        if (!changed) {
+          next = { ...prev };
+          changed = true;
+        }
+
+        next[key] = {
+          ...current,
+          gstMode: nextValue
+        };
+      });
+
+      const currentRow = ensureRow(next, rowKey, categoryKey);
+      if (currentRow.gstMode !== nextValue) {
+        if (!changed) {
+          next = { ...next };
+          changed = true;
+        }
+        next[rowKey] = {
+          ...currentRow,
+          gstMode: nextValue
+        };
+      }
+
+      return changed ? next : prev;
+    });
+  }, [ensureRow, getCategoryKey]);
 
   const setFreightMode = useCallback((rowKey, category, value) => {
-    updateField(rowKey, getCategoryKey(category), 'freightMode', String(value || ''));
-  }, [updateField, getCategoryKey]);
+    const categoryKey = getCategoryKey(category);
+    const nextValue = String(value || '').trim().toUpperCase();
+
+    setCategoryFreightModeByKey((prev) => {
+      if (prev[categoryKey] === nextValue) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [categoryKey]: nextValue
+      };
+    });
+
+    setRowInputsByKey((prev) => {
+      let changed = false;
+      let next = prev;
+
+      Object.keys(prev).forEach((key) => {
+        if (!key.startsWith(`${categoryKey}|`)) {
+          return;
+        }
+
+        const current = prev[key];
+        if (current.freightMode === nextValue) {
+          return;
+        }
+
+        if (!changed) {
+          next = { ...prev };
+          changed = true;
+        }
+
+        next[key] = {
+          ...current,
+          freightMode: nextValue
+        };
+      });
+
+      const currentRow = ensureRow(next, rowKey, categoryKey);
+      if (currentRow.freightMode !== nextValue) {
+        if (!changed) {
+          next = { ...next };
+          changed = true;
+        }
+        next[rowKey] = {
+          ...currentRow,
+          freightMode: nextValue
+        };
+      }
+
+      return changed ? next : prev;
+    });
+  }, [ensureRow, getCategoryKey]);
 
   const setCdPercent = useCallback((rowKey, category, value) => {
     updateField(rowKey, getCategoryKey(category), 'cdPercentInput', String(value ?? ''));
@@ -269,6 +473,66 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
       return changed ? next : prev;
     });
 
+    setCategoryGstModeByKey((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      keys.forEach((rowKey) => {
+        const snapshot = source[rowKey];
+        if (!snapshot) {
+          return;
+        }
+        const categoryKey = getCategoryKey(snapshot.category || rowKey.split('|')[0]);
+        const mode = toText(snapshot.gstMode).toUpperCase();
+        if (mode && next[categoryKey] !== mode) {
+          next[categoryKey] = mode;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+
+    setCategoryFreightModeByKey((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      keys.forEach((rowKey) => {
+        const snapshot = source[rowKey];
+        if (!snapshot) {
+          return;
+        }
+        const categoryKey = getCategoryKey(snapshot.category || rowKey.split('|')[0]);
+        const mode = toText(snapshot.freightMode).toUpperCase();
+        if (mode && next[categoryKey] !== mode) {
+          next[categoryKey] = mode;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+
+    setCategoryCdModeByKey((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      keys.forEach((rowKey) => {
+        const snapshot = source[rowKey];
+        if (!snapshot) {
+          return;
+        }
+        const categoryKey = getCategoryKey(snapshot.category || rowKey.split('|')[0]);
+        const mode = toText(snapshot.cdMode).toUpperCase();
+        if (mode && next[categoryKey] !== mode) {
+          next[categoryKey] = mode;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+
     setRowInputsByKey((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -318,7 +582,12 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
     products.forEach((product) => {
       const rowKey = getRowKey(product);
       const categoryKey = getCategoryKey(product.category);
-      const rowInput = rowInputsByKey[rowKey] || createDefaultRowInput(defaultNetCd, categoryDiscountByKey[categoryKey]);
+      const rowInput = rowInputsByKey[rowKey] || createDefaultRowInput(defaultNetCd, {
+        specialDiscPctInput: categoryDiscountByKey[categoryKey],
+        gstMode: categoryGstModeByKey[categoryKey],
+        freightMode: categoryFreightModeByKey[categoryKey],
+        cdMode: categoryCdModeByKey[categoryKey]
+      });
       const normalized = normalizeRowInputs(rowInput, settings);
 
       meta[rowKey] = {
@@ -330,7 +599,18 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
     });
 
     return meta;
-  }, [products, rowInputsByKey, settings, getRowKey, getCategoryKey, defaultNetCd, categoryDiscountByKey]);
+  }, [
+    products,
+    rowInputsByKey,
+    settings,
+    getRowKey,
+    getCategoryKey,
+    defaultNetCd,
+    categoryDiscountByKey,
+    categoryGstModeByKey,
+    categoryFreightModeByKey,
+    categoryCdModeByKey
+  ]);
 
   const selectedCounts = useMemo(() => {
     let ownerCount = 0;
