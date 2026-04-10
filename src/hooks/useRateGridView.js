@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { APP_MODES, SNAPSHOT_VIEW_MODES } from '../constants/appConfig';
+import { APP_MODES, RATE_BASIS, SNAPSHOT_VIEW_MODES } from '../constants/appConfig';
 import { calculateRowRate } from '../utils/calcEngine';
 
 function resolveMasterValues(product, snapshotItem) {
@@ -28,6 +28,7 @@ export function useRateGridView({
   mode,
   selectedSnapshotRef,
   snapshotViewMode,
+  rateBasis,
   snapshotError,
   snapshotItems = [],
   snapshotItemsByRowKey = {},
@@ -101,14 +102,33 @@ export function useRateGridView({
 
       const snapshotItem = activeSnapshotMap[rowKey] || null;
       const resolvedMaster = resolveMasterValues(product, snapshotItem);
-      const calc = calculateRowRate(
-        {
-          latestListPrice: resolvedMaster.latestListPrice,
-          paymentTerms: resolvedMaster.paymentTerms
-        },
-        rowMeta.normalized,
-        settings
-      );
+      const sourceListPrice = rateBasis === RATE_BASIS.OLD
+        ? resolvedMaster.previousListPrice
+        : resolvedMaster.latestListPrice;
+      const sourceWEF = rateBasis === RATE_BASIS.OLD
+        ? resolvedMaster.previousWEF
+        : resolvedMaster.latestWEF;
+      const hasSourceListPrice =
+        sourceListPrice !== null &&
+        sourceListPrice !== undefined &&
+        String(sourceListPrice).trim() !== '' &&
+        Number.isFinite(Number(sourceListPrice));
+
+      const calc = hasSourceListPrice
+        ? calculateRowRate(
+            {
+              latestListPrice: sourceListPrice,
+              paymentTerms: resolvedMaster.paymentTerms
+            },
+            rowMeta.normalized,
+            settings
+          )
+        : {
+            tdRate: null,
+            afterSpecialDiscRate: null,
+            finalRate: null,
+            invalidFinalRate: true
+          };
 
       const row = {
         rowKey,
@@ -119,6 +139,8 @@ export function useRateGridView({
         latestWEF: resolvedMaster.latestWEF,
         previousListPrice: resolvedMaster.previousListPrice,
         previousWEF: resolvedMaster.previousWEF,
+        sourceListPrice,
+        sourceWEF,
         ownerChecked: Boolean(rowMeta.rowInput?.ownerChecked),
         finalActionChecked: Boolean(rowMeta.rowInput?.finalActionChecked),
         normalized: rowMeta.normalized,
@@ -134,7 +156,7 @@ export function useRateGridView({
     });
 
     return { ownerRows, finalRows };
-  }, [displayedProducts, rateEditor, activeSnapshotMap, settings]);
+  }, [displayedProducts, rateEditor, activeSnapshotMap, settings, rateBasis]);
 
   return {
     activeSnapshotMap,
@@ -144,4 +166,3 @@ export function useRateGridView({
     selectedRowsByType
   };
 }
-

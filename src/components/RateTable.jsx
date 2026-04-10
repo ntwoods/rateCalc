@@ -13,6 +13,7 @@ function RateTable({
   onRetry,
   editor,
   mode,
+  rateBasis,
   selectedSnapshotRef,
   historyByRowKey = {},
   snapshotItemsByRowKey = {}
@@ -61,7 +62,7 @@ function RateTable({
   return (
     <div className="rate-table-wrap" data-tour="rate-grid">
       <table className="rate-table">
-        <RateTableHeader tdPercent={tdPercent} />
+        <RateTableHeader tdPercent={tdPercent} rateBasis={rateBasis} />
         <tbody>
           {rowModels.map((row) => (
             <RateRow
@@ -72,6 +73,7 @@ function RateTable({
               rowMeta={row.rowMeta}
               actions={editor.actions}
               mode={mode}
+              rateBasis={rateBasis}
               selectedSnapshotRef={selectedSnapshotRef}
               historyItem={row.historyItem}
               snapshotItem={row.snapshotItem}

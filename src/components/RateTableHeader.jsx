@@ -1,14 +1,16 @@
-function RateTableHeader({ tdPercent = 20 }) {
+import { RATE_BASIS } from '../constants/appConfig';
+
+function RateTableHeader({ tdPercent = 20, rateBasis = RATE_BASIS.LATEST }) {
+  const showOldList = rateBasis === RATE_BASIS.OLD;
+
   return (
     <thead>
       <tr>
         <th>Category</th>
         <th>Product</th>
         <th>Payment Terms</th>
-        <th>Latest List Price</th>
-        <th>Latest WEF</th>
-        <th>Previous List Price</th>
-        <th>Previous WEF</th>
+        <th>{showOldList ? 'Previous List Price' : 'Latest List Price'}</th>
+        <th>{showOldList ? 'Previous WEF' : 'Latest WEF'}</th>
         <th>{`TD (${tdPercent}%)`}</th>
         <th data-tour="special-discount-column">Special Disc %</th>
         <th>After Special Disc</th>

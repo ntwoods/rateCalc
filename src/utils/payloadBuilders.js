@@ -18,8 +18,8 @@ function buildItemPayload(row) {
     category: toText(row.category),
     product: toText(row.product),
     paymentTerms: toNumber(row.paymentTerms, 0),
-    latestListPrice: toNumber(row.latestListPrice, 0),
-    latestWEF: toText(row.latestWEF),
+    latestListPrice: toNumber(row.sourceListPrice ?? row.latestListPrice, 0),
+    latestWEF: toText(row.sourceWEF ?? row.latestWEF),
     previousListPrice: row.previousListPrice === null || row.previousListPrice === undefined || row.previousListPrice === ''
       ? ''
       : toNumber(row.previousListPrice, 0),

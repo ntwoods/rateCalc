@@ -50,6 +50,11 @@ export const SNAPSHOT_VIEW_MODES = Object.freeze({
   SNAPSHOT_ONLY: 'SNAPSHOT_ONLY'
 });
 
+export const RATE_BASIS = Object.freeze({
+  LATEST: 'LATEST',
+  OLD: 'OLD'
+});
+
 export const AUTH_STATUS = Object.freeze({
   IDLE: 'idle',
   LOADING: 'loading',

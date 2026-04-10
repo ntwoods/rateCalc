@@ -615,6 +615,23 @@
   gap: 8px;
 }
 
+.rate-source-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rate-source-bar__active {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #2e567a;
+  border: 1px solid #cfe0f1;
+  background: #f7fbff;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1601,6 +1618,7 @@
   .workspace-intro,
   .discussion-control-bar__head,
   .action-bar__row--buttons,
+  .rate-source-bar,
   .history-panel__head,
   .snapshot-summary__head {
     flex-direction: column;

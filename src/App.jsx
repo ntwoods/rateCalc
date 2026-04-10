@@ -23,6 +23,7 @@ import {
   APP_CONFIG,
   APP_MODES,
   BACKEND_STATUS,
+  RATE_BASIS,
   SNAPSHOT_VIEW_MODES
 } from './constants/appConfig';
 import { formatDate, safeText, toNumberOrZero } from './utils/formatters';
@@ -49,6 +50,7 @@ function App() {
   const [mode, setMode] = useState(APP_MODES.FRESH);
   const [productSearch, setProductSearch] = useState('');
   const [snapshotViewMode, setSnapshotViewMode] = useState(SNAPSHOT_VIEW_MODES.OVERLAY);
+  const [rateBasis, setRateBasis] = useState(RATE_BASIS.LATEST);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
 
   const {
@@ -99,6 +101,7 @@ function App() {
     mode,
     selectedSnapshotRef,
     snapshotViewMode,
+    rateBasis,
     snapshotError,
     snapshotItems,
     snapshotItemsByRowKey,
@@ -200,6 +203,13 @@ function App() {
     reloadHistory();
     reloadSnapshot();
   }, [retryHealth, reloadBootstrap, reloadProducts, reloadHistory, reloadSnapshot]);
+
+  const handleToggleRateBasis = useCallback(() => {
+    setRateBasis((prev) => (prev === RATE_BASIS.LATEST ? RATE_BASIS.OLD : RATE_BASIS.LATEST));
+  }, []);
+
+  const rateBasisButtonLabel = rateBasis === RATE_BASIS.LATEST ? 'Show Old List' : 'Show Latest List';
+  const rateBasisText = rateBasis === RATE_BASIS.LATEST ? 'Latest List Visible' : 'Old List Visible';
 
   return (
     <>
@@ -326,6 +336,17 @@ function App() {
             onSaveFinal={handleOpenFinalConfirm}
           />
 
+          <div className="rate-source-bar">
+            <span className="rate-source-bar__active">{rateBasisText}</span>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={handleToggleRateBasis}
+            >
+              {rateBasisButtonLabel}
+            </button>
+          </div>
+
           <RateTable
             products={displayedProducts}
             settings={settings}
@@ -340,6 +361,7 @@ function App() {
             onRetry={reloadProducts}
             editor={rateEditor}
             mode={mode}
+            rateBasis={rateBasis}
             selectedSnapshotRef={selectedSnapshotRef}
             historyByRowKey={latestHistoryByRowKey}
             snapshotItemsByRowKey={activeSnapshotMap}

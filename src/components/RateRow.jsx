@@ -1,5 +1,10 @@
 import { memo, useMemo } from 'react';
-import { CD_MODES, FREIGHT_MODES, GST_MODES } from '../constants/appConfig';
+import {
+  CD_MODES,
+  FREIGHT_MODES,
+  GST_MODES,
+  RATE_BASIS
+} from '../constants/appConfig';
 import { calculateRowRate } from '../utils/calcEngine';
 import { formatCurrencyINR, formatDate, safeText } from '../utils/formatters';
 import HistoryBadge from './HistoryBadge';
@@ -41,6 +46,7 @@ function RateRow({
   rowMeta,
   actions,
   mode,
+  rateBasis,
   selectedSnapshotRef,
   historyItem,
   snapshotItem
@@ -67,12 +73,26 @@ function RateRow({
         previousWEF: product.previousWEF
       };
 
+  const showOldList = rateBasis === RATE_BASIS.OLD;
+  const activeListPrice = showOldList ? displayMaster.previousListPrice : displayMaster.latestListPrice;
+  const activeWEF = showOldList ? displayMaster.previousWEF : displayMaster.latestWEF;
+  const hasActiveListPrice = activeListPrice !== null && activeListPrice !== undefined && String(activeListPrice).trim() !== '' && Number.isFinite(Number(activeListPrice));
+
   const calc = useMemo(() => {
+    if (!hasActiveListPrice) {
+      return {
+        tdRate: null,
+        afterSpecialDiscRate: null,
+        finalRate: null,
+        invalidFinalRate: true
+      };
+    }
+
     return calculateRowRate({
-      latestListPrice: displayMaster.latestListPrice,
+      latestListPrice: activeListPrice,
       paymentTerms: displayMaster.paymentTerms
     }, normalized || {}, settings || {});
-  }, [displayMaster.latestListPrice, displayMaster.paymentTerms, normalized, settings]);
+  }, [activeListPrice, displayMaster.paymentTerms, normalized, settings, hasActiveListPrice]);
 
   const showCdHint = normalized?.cdMode === 'PERCENT' && normalized?.cdPercentMissing;
   const invalidSpecial = Boolean(normalized?.specialDiscInvalid);
@@ -114,17 +134,12 @@ function RateRow({
         <span className="terms-chip">{displayMaster.paymentTerms}</span>
       </td>
 
-      <td className="cell-money">{formatCurrencyINR(displayMaster.latestListPrice)}</td>
-      <td>{formatDate(displayMaster.latestWEF, { dateStyle: 'medium' })}</td>
-
-      <td className="cell-money cell-money--subtle">
-        {displayMaster.previousListPrice === null ? '-' : formatCurrencyINR(displayMaster.previousListPrice)}
-      </td>
-      <td className="cell-subtle">
-        {displayMaster.previousWEF ? formatDate(displayMaster.previousWEF, { dateStyle: 'medium' }) : '-'}
+      <td className={`cell-money ${showOldList ? 'cell-money--subtle' : ''}`}>{hasActiveListPrice ? formatCurrencyINR(activeListPrice) : '-'}</td>
+      <td className={showOldList ? 'cell-subtle' : ''}>
+        {activeWEF ? formatDate(activeWEF, { dateStyle: 'medium' }) : '-'}
       </td>
 
-      <td className="cell-money">{formatCurrencyINR(calc.tdRate)}</td>
+      <td className="cell-money">{calc.tdRate === null ? '-' : formatCurrencyINR(calc.tdRate)}</td>
 
       <td>
         <input
@@ -137,7 +152,7 @@ function RateRow({
         />
       </td>
 
-      <td className="cell-money">{formatCurrencyINR(calc.afterSpecialDiscRate)}</td>
+      <td className="cell-money">{calc.afterSpecialDiscRate === null ? '-' : formatCurrencyINR(calc.afterSpecialDiscRate)}</td>
 
       <td>
         <select
@@ -247,6 +262,7 @@ function areEqual(prev, next) {
     prev.rowMeta === next.rowMeta &&
     prev.actions === next.actions &&
     prev.mode === next.mode &&
+    prev.rateBasis === next.rateBasis &&
     prev.selectedSnapshotRef === next.selectedSnapshotRef &&
     prev.historyItem === next.historyItem &&
     prev.snapshotItem === next.snapshotItem

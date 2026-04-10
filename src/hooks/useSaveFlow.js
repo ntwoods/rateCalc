@@ -67,6 +67,10 @@ function validateBeforeSave({
     ) {
       return `Invalid CD % for ${row.product}. Fix CD % before save.`;
     }
+
+    if (row.calc?.finalRate === null || row.calc?.finalRate === undefined || row.calc?.invalidFinalRate) {
+      return `List price not available for ${row.product} in selected view.`;
+    }
   }
 
   return '';
