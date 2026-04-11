@@ -11,10 +11,13 @@ function UserPanel({
   onSignIn,
   onSignOut,
   onRetry,
-  setSignInHost
+  setSignInHost,
+  className
 }) {
+  const panelClassName = className ? `user-panel ${className}` : 'user-panel';
+
   return (
-    <section className="user-panel" aria-label="Signed-in user panel">
+    <section className={panelClassName} aria-label="Signed-in user panel">
       {loading ? (
         <span className="user-chip">Identity: Loading...</span>
       ) : null}

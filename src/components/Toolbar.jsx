@@ -17,12 +17,14 @@ function Toolbar({
   snapshots,
   snapshotsLoading,
   loading,
-  disabled
+  disabled,
+  headerActions
 }) {
   return (
     <div className="toolbar">
-      <div className="toolbar__row">
+      <div className="toolbar__row toolbar__row--top">
         <ModeToggle value={mode} onChange={onModeChange} disabled={disabled} />
+        {headerActions || null}
       </div>
 
       <div className="toolbar__row top-controls-grid top-controls-grid--phase2b">

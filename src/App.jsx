@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from './components/AppShell';
-import TopBar from './components/TopBar';
-import StatusBanner from './components/StatusBanner';
 import Toolbar from './components/Toolbar';
 import RateTable from './components/RateTable';
 import HistoryPanel from './components/HistoryPanel';
@@ -47,7 +45,7 @@ function getInitialTheme() {
 function App() {
   const auth = useAuth();
 
-  const { status, error: healthError, health, metadata, retry: retryHealth } = useBackendBootstrap({
+  const { status, health, metadata } = useBackendBootstrap({
     includeBootstrap: false
   });
 
@@ -56,8 +54,7 @@ function App() {
     parties,
     loading: bootstrapLoading,
     error: bootstrapError,
-    hasData,
-    reload: reloadBootstrap
+    hasData
   } = useBootstrap();
 
   const [selectedParty, setSelectedParty] = useState('');
@@ -158,21 +155,6 @@ function App() {
   const signedInEmail = String(auth.user?.email || '').trim();
   const partyCount = toNumberOrZero(parties.length);
   const toolbarDisabled = status !== BACKEND_STATUS.CONNECTED;
-  const statusMessage = useMemo(() => {
-    if (status === BACKEND_STATUS.CONNECTED) {
-      if (bootstrapError) {
-        return `Backend connected. ${bootstrapError}`;
-      }
-      return `Backend connected (${safeText(metadata.backendVersion, APP_CONFIG.APP_VERSION)})`;
-    }
-
-    if (status === BACKEND_STATUS.FAILED) {
-      return healthError || 'Unable to reach backend.';
-    }
-
-    return 'Running startup health check...';
-  }, [status, bootstrapError, metadata.backendVersion, healthError]);
-
   const snapshotOptions = useMemo(() => {
     return snapshotRefs.map((item) => {
       const dateText = formatDate(item.snapshotDateTime, {
@@ -228,14 +210,6 @@ function App() {
     saveFlow.openConfirm('final');
   }, [saveFlow.openConfirm]);
 
-  const handleRefreshAll = useCallback(() => {
-    retryHealth();
-    reloadBootstrap();
-    reloadProducts();
-    reloadHistory();
-    reloadSnapshot();
-  }, [retryHealth, reloadBootstrap, reloadProducts, reloadHistory, reloadSnapshot]);
-
   const handleToggleRateBasis = useCallback(() => {
     setRateBasis((prev) => (prev === RATE_BASIS.LATEST ? RATE_BASIS.OLD : RATE_BASIS.LATEST));
   }, []);
@@ -246,50 +220,6 @@ function App() {
   return (
     <div className={`theme-root theme-${theme}`}>
       <AppShell
-        topBar={(
-          <TopBar
-            themeNode={(
-              <div className="theme-switcher">
-                <label htmlFor="theme-select">Theme</label>
-                <select
-                  id="theme-select"
-                  value={theme}
-                  onChange={(event) => setTheme(event.target.value)}
-                >
-                  {themeOptions.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            statusNode={(
-              <div className="top-bar__status-group">
-                <span className="backend-pill">{status.toUpperCase()}</span>
-              </div>
-            )}
-            userNode={(
-              <UserPanel
-                authStatus={auth.status}
-                user={auth.user}
-                loading={auth.isLoading}
-                isAuthenticated={auth.isAuthenticated}
-                isUnavailable={auth.isUnavailable}
-                error={auth.error}
-                onSignIn={auth.signIn}
-                onSignOut={auth.signOut}
-                onRetry={auth.reload}
-                setSignInHost={auth.setSignInHost}
-              />
-            )}
-          />
-        )}
-        statusBanner={(
-          <StatusBanner
-            status={status}
-            message={statusMessage}
-            onRetry={handleRefreshAll}
-          />
-        )}
         footer={(
           <div className="footer-grid">
             <span>{APP_CONFIG.APP_NAME}</span>
@@ -348,6 +278,40 @@ function App() {
                 snapshotsLoading={historyLoading}
                 loading={bootstrapLoading}
                 disabled={toolbarDisabled}
+                headerActions={(
+                  <div className="toolbar__utilities">
+                    <div className="toolbar__utility-card toolbar__utility-card--theme">
+                      <div className="theme-switcher theme-switcher--compact">
+                        <label htmlFor="theme-select">Theme</label>
+                        <select
+                          id="theme-select"
+                          value={theme}
+                          onChange={(event) => setTheme(event.target.value)}
+                        >
+                          {themeOptions.map((item) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="toolbar__utility-card toolbar__utility-card--user">
+                      <UserPanel
+                        authStatus={auth.status}
+                        user={auth.user}
+                        loading={auth.isLoading}
+                        isAuthenticated={auth.isAuthenticated}
+                        isUnavailable={auth.isUnavailable}
+                        error={auth.error}
+                        onSignIn={auth.signIn}
+                        onSignOut={auth.signOut}
+                        onRetry={auth.reload}
+                        setSignInHost={auth.setSignInHost}
+                        className="user-panel--embedded"
+                      />
+                    </div>
+                  </div>
+                )}
               />
             )}
 
