@@ -794,8 +794,7 @@
   border-collapse: separate;
   border-spacing: 0;
   min-width: 0;
-  table-layout: auto;
-  min-width: 1600px;
+  table-layout: fixed;
   font-size: 0.78rem;
   color: #274b6d;
 }
@@ -820,16 +819,16 @@
 
 .rate-table th.col-special-disc,
 .rate-table td.cell-special-disc {
-  width: 116px;
-  min-width: 116px;
-  max-width: 116px;
+  width: 7%;
+  min-width: 7%;
+  max-width: 7%;
 }
 
 .rate-table th.col-cd-percent,
 .rate-table td.cell-cd-percent {
-  width: 82px;
-  min-width: 82px;
-  max-width: 82px;
+  width: 4%;
+  min-width: 4%;
+  max-width: 4%;
 }
 
 .rate-table th .th-two-line {
@@ -838,6 +837,71 @@
   align-items: center;
   justify-content: center;
   line-height: 1.05;
+}
+
+.rate-table th.col-product,
+.rate-table td.col-product {
+  width: 14%;
+}
+
+.rate-table th.col-payment-terms,
+.rate-table td.col-payment-terms {
+  width: 5%;
+}
+
+.rate-table th.col-list-price,
+.rate-table td.col-list-price {
+  width: 8%;
+}
+
+.rate-table th.col-wef,
+.rate-table td.col-wef {
+  width: 6%;
+}
+
+.rate-table th.col-td-rate,
+.rate-table td.col-td-rate {
+  width: 7.5%;
+}
+
+.rate-table th.col-after-special,
+.rate-table td.col-after-special {
+  width: 8%;
+}
+
+.rate-table th.col-gst,
+.rate-table td.col-gst {
+  width: 6%;
+}
+
+.rate-table th.col-freight,
+.rate-table td.col-freight {
+  width: 6%;
+}
+
+.rate-table th.col-cd-mode,
+.rate-table td.col-cd-mode {
+  width: 6%;
+}
+
+.rate-table th.col-final-rate,
+.rate-table td.col-final-rate {
+  width: 8.5%;
+}
+
+.rate-table th.col-owner-select,
+.rate-table td.col-owner-select {
+  width: 4%;
+}
+
+.rate-table th.col-party-select,
+.rate-table td.col-party-select {
+  width: 4.5%;
+}
+
+.rate-table th.col-history-info,
+.rate-table td.col-history-info {
+  width: 9.5%;
 }
 
 .rate-table tbody td {
@@ -859,6 +923,17 @@
   min-width: 58px;
   margin-left: auto;
   text-align: center;
+}
+
+.rate-table td.cell-owner-select,
+.rate-table td.cell-party-select {
+  text-align: center;
+}
+
+.rate-table td.cell-owner-select input,
+.rate-table td.cell-party-select input {
+  width: 14px;
+  height: 14px;
 }
 
 .rate-table tbody tr:hover td {
@@ -911,7 +986,7 @@
 .rate-table .cell-money {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-size: 0.88rem;
+  font-size: clamp(0.8rem, 0.62vw, 0.88rem);
   font-weight: 700;
   color: #0f141b;
   line-height: 1.2;
@@ -953,10 +1028,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  height: 22px;
+  min-width: 30px;
+  height: 20px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 700;
   background: #e2effd;
   color: #1f4f7d;
@@ -987,6 +1062,10 @@
 
 .table-select {
   padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.7rem;
 }
 
 .cell-hint {
@@ -997,9 +1076,9 @@
 }
 
 .cell-history {
-  max-width: 210px;
+  max-width: none;
   color: #5f7f9e;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   white-space: normal;
 }
 

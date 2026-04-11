@@ -128,19 +128,19 @@ function RateRow({
 
   return (
     <tr className={rowClassName}>
-      <td className="cell-product">{product.product}</td>
-      <td>
+      <td className="cell-product col-product">{product.product}</td>
+      <td className="col-payment-terms">
         <span className="terms-chip">{displayMaster.paymentTerms}</span>
       </td>
 
-      <td className={`cell-money ${showOldList ? 'cell-money--subtle' : ''}`}>{hasActiveListPrice ? formatCurrencyINR(activeListPrice) : '-'}</td>
-      <td className={showOldList ? 'cell-subtle' : ''}>
-        {activeWEF ? formatDate(activeWEF, { dateStyle: 'medium' }) : '-'}
+      <td className={`cell-money col-list-price ${showOldList ? 'cell-money--subtle' : ''}`}>{hasActiveListPrice ? formatCurrencyINR(activeListPrice) : '-'}</td>
+      <td className={`col-wef ${showOldList ? 'cell-subtle' : ''}`}>
+        {activeWEF ? formatDate(activeWEF, { dateStyle: 'short' }) : '-'}
       </td>
 
-      <td className="cell-money">{calc.tdRate === null ? '-' : formatCurrencyINR(calc.tdRate)}</td>
+      <td className="cell-money col-td-rate">{calc.tdRate === null ? '-' : formatCurrencyINR(calc.tdRate)}</td>
 
-      <td className="cell-special-disc">
+      <td className="cell-special-disc col-special-disc">
         <input
           className={`table-input ${invalidSpecial ? 'table-input--invalid' : ''}`}
           type="text"
@@ -151,9 +151,9 @@ function RateRow({
         />
       </td>
 
-      <td className="cell-money">{calc.afterSpecialDiscRate === null ? '-' : formatCurrencyINR(calc.afterSpecialDiscRate)}</td>
+      <td className="cell-money col-after-special">{calc.afterSpecialDiscRate === null ? '-' : formatCurrencyINR(calc.afterSpecialDiscRate)}</td>
 
-      <td>
+      <td className="col-gst">
         <select
           className="table-select"
           value={normalized?.gstMode || 'EXTRA'}
@@ -166,7 +166,7 @@ function RateRow({
         </select>
       </td>
 
-      <td>
+      <td className="col-freight">
         <select
           className="table-select"
           value={normalized?.freightMode || 'FOR'}
@@ -179,7 +179,7 @@ function RateRow({
         </select>
       </td>
 
-      <td>
+      <td className="col-cd-mode">
         <select
           className="table-select"
           value={normalized?.cdMode || 'NET_RATES'}
@@ -192,7 +192,7 @@ function RateRow({
         </select>
       </td>
 
-      <td className="cell-cd-percent">
+      <td className="cell-cd-percent col-cd-percent">
         <input
           className={`table-input ${invalidCd ? 'table-input--invalid' : ''}`}
           type="text"
@@ -204,13 +204,13 @@ function RateRow({
         {showCdHint ? <span className="cell-hint">Enter CD %</span> : null}
       </td>
 
-      <td className="cell-money cell-final-rate">
+      <td className="cell-money cell-final-rate col-final-rate">
         <span className="final-rate-pill">
           {calc.finalRate === null || calc.invalidFinalRate ? '-' : formatCurrencyINR(calc.finalRate)}
         </span>
       </td>
 
-      <td>
+      <td className="cell-owner-select col-owner-select">
         <input
           type="checkbox"
           checked={Boolean(rowInput?.ownerChecked)}
@@ -219,7 +219,7 @@ function RateRow({
         />
       </td>
 
-      <td>
+      <td className="cell-party-select col-party-select">
         <input
           type="checkbox"
           checked={Boolean(rowInput?.finalActionChecked)}
@@ -228,11 +228,11 @@ function RateRow({
         />
       </td>
 
-      <td className="cell-history">
+      <td className="cell-history col-history-info">
         {snapshotActive && snapshotItem ? (
           <div className="history-cell">
             <HistoryBadge actionTag={snapshotItem.actionTag} compact />
-            <span>{formatDate(snapshotItem.snapshotDateTime, { dateStyle: 'medium' })}</span>
+            <span>{formatDate(snapshotItem.snapshotDateTime, { dateStyle: 'short' })}</span>
             <span className="cell-money cell-money--history">{formatCurrencyINR(snapshotItem.finalRate)}</span>
             <span>{snapshotSummary}</span>
             {specialDiscountDispatched ? <span className="history-status-pill">Special Discount Dispatched</span> : null}
@@ -240,7 +240,7 @@ function RateRow({
         ) : historyItem ? (
           <div className="history-cell">
             <HistoryBadge actionTag={historyItem.lastActionTag} compact />
-            <span>{formatDate(historyItem.lastTimestamp, { dateStyle: 'medium' })}</span>
+            <span>{formatDate(historyItem.lastTimestamp, { dateStyle: 'short' })}</span>
             <span className="cell-money cell-money--history">{formatCurrencyINR(historyItem.lastFinalRate)}</span>
             <span>{historySummary}</span>
             {specialDiscountDispatched ? <span className="history-status-pill">Special Discount Dispatched</span> : null}

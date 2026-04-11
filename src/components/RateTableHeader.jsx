@@ -6,23 +6,35 @@ function RateTableHeader({ tdPercent = 20, rateBasis = RATE_BASIS.LATEST }) {
   return (
     <thead>
       <tr>
-        <th>Product</th>
-        <th>Payment Terms</th>
-        <th>{showOldList ? 'Previous List Price' : 'Latest List Price'}</th>
-        <th>{showOldList ? 'Previous WEF' : 'Latest WEF'}</th>
-        <th>{`TD (${tdPercent}%)`}</th>
+        <th className="col-product">Product</th>
+        <th className="col-payment-terms">
+          <span className="th-two-line">Payment<br />Terms</span>
+        </th>
+        <th className="col-list-price">
+          {showOldList ? 'Previous List Price' : 'Latest List Price'}
+        </th>
+        <th className="col-wef">{showOldList ? 'Previous WEF' : 'Latest WEF'}</th>
+        <th className="col-td-rate">{`TD (${tdPercent}%)`}</th>
         <th className="col-special-disc" data-tour="special-discount-column">
           <span className="th-two-line">Special Disc<br />%</span>
         </th>
-        <th>After Special Disc</th>
-        <th data-tour="gst-column">GST</th>
-        <th data-tour="freight-column">Freight</th>
-        <th data-tour="cd-column">CD</th>
+        <th className="col-after-special">
+          <span className="th-two-line">After Special<br />Disc</span>
+        </th>
+        <th className="col-gst" data-tour="gst-column">GST</th>
+        <th className="col-freight" data-tour="freight-column">Freight</th>
+        <th className="col-cd-mode" data-tour="cd-column">CD</th>
         <th className="col-cd-percent">CD %</th>
-        <th>Final Rate</th>
-        <th data-tour="owner-row-actions">Owner Select</th>
-        <th>Party Agreed Select</th>
-        <th>History Info</th>
+        <th className="col-final-rate">Final Rate</th>
+        <th className="col-owner-select" data-tour="owner-row-actions">
+          <span className="th-two-line">Owner<br />Select</span>
+        </th>
+        <th className="col-party-select">
+          <span className="th-two-line">Party Agreed<br />Select</span>
+        </th>
+        <th className="col-history-info">
+          <span className="th-two-line">History<br />Info</span>
+        </th>
       </tr>
     </thead>
   );
