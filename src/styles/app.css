@@ -795,7 +795,7 @@
   border-spacing: 0;
   min-width: 0;
   table-layout: auto;
-  min-width: 1750px;
+  min-width: 1600px;
   font-size: 0.78rem;
   color: #274b6d;
 }
@@ -818,6 +818,28 @@
   word-break: break-word;
 }
 
+.rate-table th.col-special-disc,
+.rate-table td.cell-special-disc {
+  width: 116px;
+  min-width: 116px;
+  max-width: 116px;
+}
+
+.rate-table th.col-cd-percent,
+.rate-table td.cell-cd-percent {
+  width: 82px;
+  min-width: 82px;
+  max-width: 82px;
+}
+
+.rate-table th .th-two-line {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+
 .rate-table tbody td {
   padding: 7px 8px;
   border-bottom: 1px solid #ebf2fb;
@@ -826,6 +848,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.rate-table td.cell-cd-percent {
+  text-align: right;
+}
+
+.rate-table td.cell-cd-percent .table-input {
+  width: 58px;
+  min-width: 58px;
+  margin-left: auto;
+  text-align: center;
 }
 
 .rate-table tbody tr:hover td {

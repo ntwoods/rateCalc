@@ -128,7 +128,6 @@ function RateRow({
 
   return (
     <tr className={rowClassName}>
-      <td className="cell-strong">{product.category}</td>
       <td className="cell-product">{product.product}</td>
       <td>
         <span className="terms-chip">{displayMaster.paymentTerms}</span>
@@ -141,7 +140,7 @@ function RateRow({
 
       <td className="cell-money">{calc.tdRate === null ? '-' : formatCurrencyINR(calc.tdRate)}</td>
 
-      <td>
+      <td className="cell-special-disc">
         <input
           className={`table-input ${invalidSpecial ? 'table-input--invalid' : ''}`}
           type="text"
@@ -193,7 +192,7 @@ function RateRow({
         </select>
       </td>
 
-      <td>
+      <td className="cell-cd-percent">
         <input
           className={`table-input ${invalidCd ? 'table-input--invalid' : ''}`}
           type="text"
