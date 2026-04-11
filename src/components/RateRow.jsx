@@ -234,7 +234,7 @@ function RateRow({
           <div className="history-cell">
             <HistoryBadge actionTag={snapshotItem.actionTag} compact />
             <span>{formatDate(snapshotItem.snapshotDateTime, { dateStyle: 'medium' })}</span>
-            <span>{formatCurrencyINR(snapshotItem.finalRate)}</span>
+            <span className="cell-money cell-money--history">{formatCurrencyINR(snapshotItem.finalRate)}</span>
             <span>{snapshotSummary}</span>
             {specialDiscountDispatched ? <span className="history-status-pill">Special Discount Dispatched</span> : null}
           </div>
@@ -242,7 +242,7 @@ function RateRow({
           <div className="history-cell">
             <HistoryBadge actionTag={historyItem.lastActionTag} compact />
             <span>{formatDate(historyItem.lastTimestamp, { dateStyle: 'medium' })}</span>
-            <span>{formatCurrencyINR(historyItem.lastFinalRate)}</span>
+            <span className="cell-money cell-money--history">{formatCurrencyINR(historyItem.lastFinalRate)}</span>
             <span>{historySummary}</span>
             {specialDiscountDispatched ? <span className="history-status-pill">Special Discount Dispatched</span> : null}
           </div>

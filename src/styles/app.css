@@ -784,7 +784,7 @@
   border: 1px solid #d4e4f5;
   border-radius: 10px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   max-height: 62vh;
   scroll-behavior: smooth;
 }
@@ -794,7 +794,8 @@
   border-collapse: separate;
   border-spacing: 0;
   min-width: 0;
-  table-layout: fixed;
+  table-layout: auto;
+  min-width: 1750px;
   font-size: 0.78rem;
   color: #274b6d;
 }
@@ -877,16 +878,26 @@
 .rate-table .cell-money {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f141b;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 1px rgba(8, 12, 18, 0.28);
 }
 
-.rate-table .cell-money--subtle,
+.rate-table .cell-money--subtle {
+  color: #1a2330;
+  font-weight: 650;
+}
+
 .rate-table .cell-subtle {
   color: #6d88a3;
 }
 
 .rate-table .cell-final-rate {
-  font-weight: 700;
-  color: #0f4d3b;
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: #0f141b;
 }
 
 .final-rate-pill {
@@ -899,6 +910,10 @@
   border-radius: 7px;
   background: #e7f7ef;
   border: 1px solid #bde6d0;
+  color: #0f141b;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 1px rgba(8, 12, 18, 0.22);
 }
 
 .terms-chip {
@@ -959,6 +974,13 @@
   display: grid;
   gap: 2px;
   line-height: 1.25;
+}
+
+.history-cell .cell-money--history {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f141b;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 1px rgba(8, 12, 18, 0.25);
 }
 
 .btn-link {
