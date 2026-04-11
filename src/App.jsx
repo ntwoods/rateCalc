@@ -158,8 +158,6 @@ function App() {
   const signedInEmail = String(auth.user?.email || '').trim();
   const partyCount = toNumberOrZero(parties.length);
   const toolbarDisabled = status !== BACKEND_STATUS.CONNECTED;
-  const modeLabel = mode === APP_MODES.FRESH ? 'Fresh Calculation Mode' : 'Load Saved Snapshot Mode';
-
   const statusMessage = useMemo(() => {
     if (status === BACKEND_STATUS.CONNECTED) {
       if (bootstrapError) {
@@ -304,14 +302,6 @@ function App() {
           <div className="workspace-intro">
             <div>
               <h2>Rate Discussion Workspace</h2>
-              <p className="workspace-intro__subtitle">Compact calculation flow for owner approval and party agreed workflow.</p>
-            </div>
-            <div className="workspace-intro__chips">
-              <span className="meta-chip"><strong>Mode:</strong> {modeLabel}</span>
-              <span className="meta-chip"><strong>Party:</strong> {safeText(selectedParty, 'Not selected')}</span>
-              <span className="meta-chip"><strong>Rows:</strong> {productsLoading ? '...' : toNumberOrZero(displayedProducts.length)}</span>
-              <span className="meta-chip"><strong>Owner Select:</strong> {toNumberOrZero(rateEditor.selectedCounts.ownerCount)}</span>
-              <span className="meta-chip"><strong>Party Agreed Select:</strong> {toNumberOrZero(rateEditor.selectedCounts.finalCount)}</span>
             </div>
           </div>
 
@@ -361,39 +351,27 @@ function App() {
               />
             )}
 
-            <div className="control-hints">
-              <span className="hint-pill">Select a party to load rate context</span>
-              <span className="hint-pill">Search product name to jump to a row</span>
-              <span className="hint-pill">Special discount applies category-wise</span>
-              <span className="hint-pill">Save for owner review or party agreed workflow</span>
-              {mode === APP_MODES.SNAPSHOT && !selectedSnapshotRef ? (
-                <span className="hint-pill hint-pill--warn">Choose a saved reference in snapshot mode</span>
-              ) : null}
-            </div>
           </section>
 
           <ActionBar
-            selectedParty={selectedParty}
             isAuthenticated={auth.isAuthenticated}
-            ownerSelectedCount={toNumberOrZero(selectedRowsByType.ownerRows.length)}
-            finalSelectedCount={toNumberOrZero(selectedRowsByType.finalRows.length)}
             savingType={saveFlow.savingType}
-            saveGuardMessage="Sign in to enable save actions. Read-only browsing stays available."
             disabled={toolbarDisabled || productsLoading || snapshotLoading}
             onSaveOwner={handleOpenOwnerConfirm}
             onSaveFinal={handleOpenFinalConfirm}
+            auxiliaryNode={(
+              <div className="rate-source-bar">
+                <span className="rate-source-bar__active">{rateBasisText}</span>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={handleToggleRateBasis}
+                >
+                  {rateBasisButtonLabel}
+                </button>
+              </div>
+            )}
           />
-
-          <div className="rate-source-bar">
-            <span className="rate-source-bar__active">{rateBasisText}</span>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={handleToggleRateBasis}
-            >
-              {rateBasisButtonLabel}
-            </button>
-          </div>
 
           <RateTable
             products={displayedProducts}

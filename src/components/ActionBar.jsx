@@ -1,32 +1,19 @@
 import { memo } from 'react';
 
 function ActionBar({
-  selectedParty,
   isAuthenticated,
-  ownerSelectedCount,
-  finalSelectedCount,
   savingType,
-  saveGuardMessage,
   disabled,
   onSaveOwner,
-  onSaveFinal
+  onSaveFinal,
+  auxiliaryNode
 }) {
   const saveDisabled = disabled || !isAuthenticated;
 
   return (
     <section className="action-bar">
-      {!isAuthenticated && saveGuardMessage ? (
-        <div className="inline-alert inline-alert--soft action-bar__guard" role="status">
-          {saveGuardMessage}
-        </div>
-      ) : null}
-
       <div className="action-bar__row action-bar__row--buttons">
-        <div className="action-bar__summary">
-          <span><strong>Party:</strong> {selectedParty || 'Not selected'}</span>
-          <span><strong>Owner Rows:</strong> {ownerSelectedCount}</span>
-          <span><strong>Party Agreed Rows:</strong> {finalSelectedCount}</span>
-        </div>
+        {auxiliaryNode}
 
         <div className="action-bar__buttons">
           <button
