@@ -21,7 +21,7 @@ function RateTableHeader({ tdPercent = 20, rateBasis = RATE_BASIS.LATEST }) {
         <th className="col-after-special">
           <span className="th-two-line">After Special<br />Disc</span>
         </th>
-        <th className="col-gst" data-tour="gst-column">GST</th>
+        <th className="col-gst" data-tour="gst-column">Other Charges</th>
         <th className="col-freight" data-tour="freight-column">Freight</th>
         <th className="col-cd-mode" data-tour="cd-column">CD</th>
         <th className="col-cd-percent">CD %</th>
