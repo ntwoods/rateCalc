@@ -26,6 +26,10 @@ import {
   SNAPSHOT_VIEW_MODES
 } from './constants/appConfig';
 import { formatDate, safeText, toNumberOrZero } from './utils/formatters';
+import {
+  buildOwnerApprovedRatesCopyData,
+  copyPlainTextToClipboard
+} from './utils/copyRates';
 import './styles/app.css';
 
 const THEME_STORAGE_KEY = 'portal_theme';
@@ -65,6 +69,7 @@ function App() {
   const [rateBasis, setRateBasis] = useState(RATE_BASIS.LATEST);
   const [theme, setTheme] = useState(getInitialTheme);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState({ type: '', message: '' });
 
   const {
     products,
@@ -214,8 +219,67 @@ function App() {
     setRateBasis((prev) => (prev === RATE_BASIS.LATEST ? RATE_BASIS.OLD : RATE_BASIS.LATEST));
   }, []);
 
+  const clearCopyFeedback = useCallback(() => {
+    setCopyFeedback({ type: '', message: '' });
+  }, []);
+
+  const snapshotActive = mode === APP_MODES.SNAPSHOT && Boolean(selectedSnapshotRef);
+  const copyRatesData = useMemo(() => {
+    return buildOwnerApprovedRatesCopyData({
+      partyName: selectedParty,
+      displayedProducts,
+      activeSnapshotMap,
+      latestHistoryByRowKey,
+      snapshotActive,
+      getRowKey: rateEditor.getRowKey
+    });
+  }, [
+    selectedParty,
+    displayedProducts,
+    activeSnapshotMap,
+    latestHistoryByRowKey,
+    snapshotActive,
+    rateEditor.getRowKey
+  ]);
+
+  const handleCopyRates = useCallback(async () => {
+    saveFlow.clearFeedback();
+    clearCopyFeedback();
+
+    if (!copyRatesData.canCopy || !copyRatesData.copyText) {
+      setCopyFeedback({
+        type: 'error',
+        message: copyRatesData.reason || 'No owner-approved rates in the current view.'
+      });
+      return;
+    }
+
+    try {
+      await copyPlainTextToClipboard(copyRatesData.copyText);
+      setCopyFeedback({
+        type: 'success',
+        message: `Rates copied successfully (${toNumberOrZero(copyRatesData.itemCount)} item${copyRatesData.itemCount === 1 ? '' : 's'}).`
+      });
+    } catch (error) {
+      setCopyFeedback({
+        type: 'error',
+        message: error?.message || 'Unable to copy rates. Please try again.'
+      });
+    }
+  }, [copyRatesData, saveFlow.clearFeedback, clearCopyFeedback]);
+
   const rateBasisButtonLabel = rateBasis === RATE_BASIS.LATEST ? 'Show Old List' : 'Show Latest List';
   const rateBasisText = rateBasis === RATE_BASIS.LATEST ? 'Latest List Visible' : 'Old List Visible';
+  const copyRatesBlockedByLoading = toolbarDisabled || productsLoading || snapshotLoading;
+  const copyRatesDisabled = copyRatesBlockedByLoading || !copyRatesData.canCopy;
+  const copyRatesTooltip = !selectedParty
+    ? 'Select a party to copy rates.'
+    : copyRatesBlockedByLoading
+      ? 'Copy is unavailable while the table is loading.'
+      : copyRatesData.reason || 'Copy owner-approved rates from the current view.';
+
+  const activeToastFeedback = copyFeedback.message ? copyFeedback : saveFlow.feedback;
+  const clearActiveToast = copyFeedback.message ? clearCopyFeedback : saveFlow.clearFeedback;
 
   return (
     <div className={`theme-root theme-${theme}`}>
@@ -323,6 +387,9 @@ function App() {
             disabled={toolbarDisabled || productsLoading || snapshotLoading}
             onSaveOwner={handleOpenOwnerConfirm}
             onSaveFinal={handleOpenFinalConfirm}
+            onCopyRates={handleCopyRates}
+            copyRatesDisabled={copyRatesDisabled}
+            copyRatesTooltip={copyRatesTooltip}
             auxiliaryNode={(
               <div className="rate-source-bar">
                 <span className="rate-source-bar__active">{rateBasisText}</span>
@@ -423,10 +490,10 @@ function App() {
       />
 
       <Toast
-        open={Boolean(saveFlow.feedback.message)}
-        type={saveFlow.feedback.type === 'error' ? 'error' : 'success'}
-        message={saveFlow.feedback.message}
-        onClose={saveFlow.clearFeedback}
+        open={Boolean(activeToastFeedback.message)}
+        type={activeToastFeedback.type === 'error' ? 'error' : 'success'}
+        message={activeToastFeedback.message}
+        onClose={clearActiveToast}
       />
     </div>
   );

@@ -6,9 +6,13 @@ function ActionBar({
   disabled,
   onSaveOwner,
   onSaveFinal,
+  onCopyRates,
+  copyRatesDisabled = false,
+  copyRatesTooltip = '',
   auxiliaryNode
 }) {
   const saveDisabled = disabled || !isAuthenticated;
+  const copyDisabled = disabled || copyRatesDisabled;
 
   return (
     <section className="action-bar">
@@ -16,6 +20,18 @@ function ActionBar({
         {auxiliaryNode}
 
         <div className="action-bar__buttons">
+          <span title={copyRatesTooltip}>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              data-tour="copy-rates-button"
+              onClick={onCopyRates}
+              disabled={copyDisabled}
+            >
+              Copy Rates
+            </button>
+          </span>
+
           <button
             type="button"
             className="btn"
