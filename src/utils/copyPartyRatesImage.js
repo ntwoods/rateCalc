@@ -93,6 +93,8 @@ function resolveRateColumns(row, condition) {
 }
 
 function buildConditionSignature(condition) {
+  // Grouping is intentionally based only on GST/Freight/CD conditions.
+  // Special discount and payment term must not create separate tables.
   return [
     condition.gstMode,
     condition.freightMode,
@@ -160,12 +162,7 @@ function buildGroups(ownerRows) {
   });
 
   return Array.from(groupsBySignature.values())
-    .sort((a, b) => {
-      if (a.condition.paymentTerms !== b.condition.paymentTerms) {
-        return a.condition.paymentTerms - b.condition.paymentTerms;
-      }
-      return a.order - b.order;
-    })
+    .sort((a, b) => a.order - b.order)
     .map((group) => ({
       ...group,
       paymentTermsList: Array.from(group.paymentTermsSet.values())
