@@ -141,15 +141,18 @@
 
 .top-controls-grid--phase2b {
   margin-top: 10px;
+  overflow: visible;
 }
 
 .toolbar {
   display: grid;
   gap: 6px;
+  overflow: visible;
 }
 
 .toolbar__row {
   width: 100%;
+  overflow: visible;
 }
 
 .mode-toggle {
@@ -187,6 +190,7 @@
   display: grid;
   gap: 6px;
   position: relative;
+  overflow: visible;
 }
 
 .control-card label {
@@ -208,15 +212,20 @@
 .combo-box,
 .search-box-wrap {
   position: relative;
+  overflow: visible;
 }
 
 .combo-box input {
   width: 100%;
 }
 
+.party-selector {
+  z-index: 50;
+}
+
 .combo-list {
   position: absolute;
-  z-index: 20;
+  z-index: 1305;
   left: 0;
   right: 0;
   top: 100%;
@@ -329,6 +338,23 @@
   border-color: #acc9e6;
 }
 
+.btn--admin {
+  background: #127f56;
+  border-color: #127f56;
+  color: #ffffff;
+}
+
+.btn--admin:hover {
+  background: #0e6d49;
+  border-color: #0e6d49;
+}
+
+.btn--toggle-active {
+  border-color: #3f8bc7;
+  color: #114a7a;
+  background: #e7f2ff;
+}
+
 .btn--xs {
   height: 28px;
   padding: 0 10px;
@@ -370,6 +396,16 @@
 .user-panel__identity span {
   color: #4a6f92;
   font-size: 0.73rem;
+}
+
+.user-panel__role {
+  font-size: 0.68rem;
+  color: #4b6c8b;
+}
+
+.user-panel__role--admin {
+  color: #0f6c47;
+  font-weight: 700;
 }
 
 .google-signin-host {
@@ -613,6 +649,7 @@
 .action-bar__buttons {
   display: inline-flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .rate-source-bar {
@@ -1450,7 +1487,7 @@
 .discussion-control-bar {
   position: sticky;
   top: 8px;
-  z-index: 8;
+  z-index: 40;
   border: 1px solid #d6e6f7;
   border-radius: 10px;
   background: #ffffff;
@@ -1458,6 +1495,7 @@
   display: grid;
   gap: 8px;
   box-shadow: 0 10px 20px rgba(18, 53, 88, 0.08);
+  overflow: visible;
 }
 
 .discussion-control-bar__head {
@@ -1495,6 +1533,7 @@
 
 .toolbar {
   gap: 7px;
+  overflow: visible;
 }
 
 .toolbar__row--top {
@@ -1946,6 +1985,11 @@
   box-shadow: var(--theme-shadow);
   position: relative;
   z-index: 1;
+}
+
+.theme-root .discussion-control-bar {
+  z-index: 40;
+  overflow: visible;
 }
 
 .theme-root .top-bar__title,

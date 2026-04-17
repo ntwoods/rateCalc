@@ -14,6 +14,7 @@ function RateTable({
   editor,
   mode,
   rateBasis,
+  canEditSnapshotConditions = false,
   selectedSnapshotRef,
   historyByRowKey = {},
   snapshotItemsByRowKey = {}
@@ -74,6 +75,7 @@ function RateTable({
               actions={editor.actions}
               mode={mode}
               rateBasis={rateBasis}
+              canEditSnapshotConditions={canEditSnapshotConditions}
               selectedSnapshotRef={selectedSnapshotRef}
               historyItem={row.historyItem}
               snapshotItem={row.snapshotItem}

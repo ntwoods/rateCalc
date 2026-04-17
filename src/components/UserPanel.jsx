@@ -8,6 +8,8 @@ function UserPanel({
   isAuthenticated,
   isUnavailable,
   error,
+  role = 'USER',
+  isAdminUser = false,
   onSignIn,
   onSignOut,
   onRetry,
@@ -27,6 +29,9 @@ function UserPanel({
           <div className="user-panel__identity">
             <strong>{safeText(user?.name, 'Signed-in User')}</strong>
             <span>{safeText(user?.email, '-')}</span>
+            <span className={`user-panel__role ${isAdminUser ? 'user-panel__role--admin' : ''}`}>
+              Role: {safeText(role, 'USER')}
+            </span>
           </div>
           <button type="button" className="btn btn--secondary btn--xs" onClick={onSignOut}>
             Sign Out

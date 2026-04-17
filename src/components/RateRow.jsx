@@ -47,6 +47,7 @@ function RateRow({
   actions,
   mode,
   rateBasis,
+  canEditSnapshotConditions = false,
   selectedSnapshotRef,
   historyItem,
   snapshotItem
@@ -56,7 +57,7 @@ function RateRow({
 
   const inSnapshotMode = mode === 'SNAPSHOT';
   const snapshotActive = inSnapshotMode && Boolean(selectedSnapshotRef);
-  const disableRateFields = snapshotActive;
+  const disableRateFields = snapshotActive && !canEditSnapshotConditions;
   const displayMaster = snapshotActive && snapshotItem
     ? {
         paymentTerms: snapshotItem.paymentTerms || product.paymentTerms,
@@ -262,6 +263,7 @@ function areEqual(prev, next) {
     prev.actions === next.actions &&
     prev.mode === next.mode &&
     prev.rateBasis === next.rateBasis &&
+    prev.canEditSnapshotConditions === next.canEditSnapshotConditions &&
     prev.selectedSnapshotRef === next.selectedSnapshotRef &&
     prev.historyItem === next.historyItem &&
     prev.snapshotItem === next.snapshotItem

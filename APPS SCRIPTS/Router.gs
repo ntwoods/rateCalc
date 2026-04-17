@@ -21,6 +21,8 @@ function routeRequest(method, e) {
         return handleGetPartiesRoute_(ctx);
       case normalizeKey(CONFIG.ACTIONS.GET_PRODUCTS):
         return handleGetProductsRoute_(ctx);
+      case normalizeKey(CONFIG.ACTIONS.GET_CURRENT_USER_ROLE):
+        return handleGetCurrentUserRoleRoute_(ctx);
       case normalizeKey(CONFIG.ACTIONS.GET_PARTY_SNAPSHOTS):
         return handleGetPartySnapshotsRoute_(ctx);
       case normalizeKey(CONFIG.ACTIONS.GET_SNAPSHOT_BY_REF):
@@ -88,6 +90,13 @@ function handleGetProductsRoute_(ctx) {
     category: ctx.query.category
   });
   return respondOk('Product master fetched.', data);
+}
+
+function handleGetCurrentUserRoleRoute_(ctx) {
+  requireMethod_(ctx, 'GET', CONFIG.ACTIONS.GET_CURRENT_USER_ROLE);
+  const userEmail = readParam_(ctx, ['useremail', 'user_email', 'email']);
+  const data = MasterService.getCurrentUserRole(userEmail);
+  return respondOk('User role fetched.', data);
 }
 
 function handleGetPartySnapshotsRoute_(ctx) {

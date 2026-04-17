@@ -38,7 +38,11 @@ function toBool(value) {
   return ['true', '1', 'yes', 'y'].includes(text);
 }
 
-export function useRateEditor({ products = [], settings = {} } = {}) {
+export function useRateEditor({
+  products = [],
+  settings = {},
+  ownerBulkByCategoryEnabled = false
+} = {}) {
   const [rowInputsByKey, setRowInputsByKey] = useState({});
   const [categoryDiscountByKey, setCategoryDiscountByKey] = useState({});
   const [categoryGstModeByKey, setCategoryGstModeByKey] = useState({});
@@ -296,8 +300,44 @@ export function useRateEditor({ products = [], settings = {} } = {}) {
   }, [defaultNetCd, ensureRow, getCategoryKey]);
 
   const setOwnerChecked = useCallback((rowKey, category, checked) => {
-    updateField(rowKey, getCategoryKey(category), 'ownerChecked', Boolean(checked));
-  }, [updateField, getCategoryKey]);
+    const categoryKey = getCategoryKey(category);
+    const nextChecked = Boolean(checked);
+
+    if (!ownerBulkByCategoryEnabled) {
+      updateField(rowKey, categoryKey, 'ownerChecked', nextChecked);
+      return;
+    }
+
+    setRowInputsByKey((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      Object.keys(next).forEach((key) => {
+        if (!key.startsWith(`${categoryKey}|`)) {
+          return;
+        }
+        if (Boolean(next[key]?.ownerChecked) === nextChecked) {
+          return;
+        }
+        next[key] = {
+          ...next[key],
+          ownerChecked: nextChecked
+        };
+        changed = true;
+      });
+
+      const currentRow = ensureRow(next, rowKey, categoryKey);
+      if (Boolean(currentRow.ownerChecked) !== nextChecked) {
+        next[rowKey] = {
+          ...currentRow,
+          ownerChecked: nextChecked
+        };
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [updateField, getCategoryKey, ownerBulkByCategoryEnabled, ensureRow]);
 
   const setFinalActionChecked = useCallback((rowKey, category, checked) => {
     updateField(rowKey, getCategoryKey(category), 'finalActionChecked', Boolean(checked));

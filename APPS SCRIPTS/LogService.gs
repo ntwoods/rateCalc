@@ -35,7 +35,7 @@ var LogService = (function () {
   // Save flow:
   // 1) Validate payload and selected rows.
   // 2) Recompute all rates server-side.
-  // 3) Acquire script lock and batch-write header + items.
+  // 3) Either append a new immutable ref OR update a loaded ref in-place (admin-only).
   // 4) Upsert PartyItemLatest index for fast history reads.
   function saveRateBatch(payload, actionTag) {
     const rawPayload = payload && typeof payload === 'object' ? payload : {};
@@ -92,7 +92,34 @@ var LogService = (function () {
     }
 
     const settings = MasterService.getSettingsMap();
-    const refKey = makeRefKey('rate');
+    const requestedUpdateRefKey = normalizeString(
+      readAny_(rawPayload, ['updateRefKey', 'UpdateRefKey', 'loadedRefKey', 'LoadedRefKey', 'targetRefKey', 'TargetRefKey'])
+    );
+    const requestUpdateExisting = toBoolean_(
+      readAny_(rawPayload, ['requestUpdateExisting', 'RequestUpdateExisting', 'updateExisting', 'UpdateExisting']),
+      false
+    );
+    const isUpdateMode = requestUpdateExisting || !isBlank(requestedUpdateRefKey);
+
+    if (isUpdateMode && sourceMode !== CONFIG.SOURCE_MODES.SNAPSHOT) {
+      throw appError('UPDATE_MODE_REQUIRES_SNAPSHOT', 'Updating an existing reference is allowed only in SNAPSHOT mode.', [
+        { field: 'sourceMode', detail: 'Use sourceMode=SNAPSHOT when updating loaded reference.' }
+      ]);
+    }
+
+    if (isUpdateMode && isBlank(requestedUpdateRefKey)) {
+      throw appError('UPDATE_REFKEY_REQUIRED', 'updateRefKey is required for update mode.', [
+        { field: 'updateRefKey', detail: 'Provide the loaded snapshot refKey to update in-place.' }
+      ]);
+    }
+
+    if (isUpdateMode && !MasterService.isAdminUser(userEmail)) {
+      throw appError('ADMIN_REQUIRED_FOR_UPDATE', 'Only ADMIN users can update an existing loaded reference.', [
+        { field: 'userEmail', detail: userEmail }
+      ]);
+    }
+
+    const refKey = isUpdateMode ? requestedUpdateRefKey : makeRefKey('rate');
     const createdAt = nowIso();
     const snapshotDateTime = createdAt;
 
@@ -118,6 +145,21 @@ var LogService = (function () {
       sourceMode: sourceMode,
       createdAt: createdAt
     });
+
+    if (isUpdateMode) {
+      return updateExistingRefBatch_({
+        refKey: refKey,
+        partyName: partyName,
+        actionTag: resolvedActionTag,
+        sourceMode: sourceMode,
+        notes: notes,
+        userEmail: userEmail,
+        createdAt: createdAt,
+        snapshotDateTime: snapshotDateTime,
+        headerRow: headerRow,
+        builtItems: builtItems
+      });
+    }
 
     const lock = LockService.getScriptLock();
     try {
@@ -287,6 +329,329 @@ var LogService = (function () {
       summary: summary,
       latestEntries: latestEntries
     };
+  }
+
+  function updateExistingRefBatch_(context) {
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(30000);
+    } catch (err) {
+      throw appError('WRITE_LOCK_TIMEOUT', 'Could not acquire write lock. Please retry.', [
+        { detail: err && err.message ? err.message : 'Lock timeout.' }
+      ]);
+    }
+
+    try {
+      const headerSheet = getSheetOrThrow(CONFIG.SHEETS.RATE_LOG_HEADER);
+      const headerHeaders = CONFIG.WORKBOOK_SHEETS.RateLogHeader;
+      ensureSheetHeader_(headerSheet, headerHeaders);
+      const headerValues = getAllValues(headerSheet);
+      const headerHeaderRow = headerValues.length > 0 ? headerValues[0] : headerHeaders;
+      const headerMap = createNormalizedHeaderMapFromRow_(headerHeaderRow);
+      const headerFallbackMap = createNormalizedHeaderMapFromRow_(headerHeaders);
+      const idxHeaderRefKey = getHeaderIndex_(headerMap, headerFallbackMap, ['RefKey']);
+      const idxHeaderParty = getHeaderIndex_(headerMap, headerFallbackMap, ['PartyName']);
+      const idxHeaderActionTag = getHeaderIndex_(headerMap, headerFallbackMap, ['ActionTag']);
+      const idxHeaderItemCount = getHeaderIndex_(headerMap, headerFallbackMap, ['ItemCount']);
+      const idxHeaderNotes = getHeaderIndex_(headerMap, headerFallbackMap, ['Notes']);
+      const idxHeaderSourceMode = getHeaderIndex_(headerMap, headerFallbackMap, ['SourceMode']);
+
+      let matchedHeader = null;
+      for (let i = 1; i < headerValues.length; i += 1) {
+        const row = headerValues[i];
+        if (normalizeString(readByIdx_(row, idxHeaderRefKey)) !== context.refKey) {
+          continue;
+        }
+        if (matchedHeader) {
+          throw appError('REFKEY_HEADER_AMBIGUOUS', 'Multiple RateLogHeader rows exist for the same refKey. Aborting update.', [
+            { field: 'refKey', detail: context.refKey }
+          ]);
+        }
+        matchedHeader = {
+          rowNumber: i + 1,
+          row: row
+        };
+      }
+
+      if (!matchedHeader) {
+        throw appError('REFKEY_NOT_FOUND', 'Loaded reference was not found in RateLogHeader.', [
+          { field: 'refKey', detail: context.refKey }
+        ]);
+      }
+
+      const existingHeaderParty = normalizeString(readByIdx_(matchedHeader.row, idxHeaderParty));
+      if (normalizeKey(existingHeaderParty) !== normalizeKey(context.partyName)) {
+        throw appError('REFKEY_PARTY_MISMATCH', 'Loaded reference does not belong to selected party. Aborting update.', [
+          { field: 'refKey', detail: context.refKey },
+          { field: 'selectedParty', detail: context.partyName },
+          { field: 'refParty', detail: existingHeaderParty }
+        ]);
+      }
+
+      const existingHeaderActionTag = normalizeActionTag_(readByIdx_(matchedHeader.row, idxHeaderActionTag));
+      const existingHeaderItemCount = toSafeNumber(readByIdx_(matchedHeader.row, idxHeaderItemCount), 0);
+      const existingHeaderNotes = normalizeString(readByIdx_(matchedHeader.row, idxHeaderNotes));
+      const existingHeaderSourceMode = normalizeSourceMode_(readByIdx_(matchedHeader.row, idxHeaderSourceMode));
+
+      const itemSheet = getSheetOrThrow(CONFIG.SHEETS.RATE_LOG_ITEMS);
+      const itemHeaders = CONFIG.WORKBOOK_SHEETS.RateLogItems;
+      ensureSheetHeader_(itemSheet, itemHeaders);
+      const itemValues = getAllValues(itemSheet);
+      const itemHeaderRow = itemValues.length > 0 ? itemValues[0] : itemHeaders;
+      const itemMap = createNormalizedHeaderMapFromRow_(itemHeaderRow);
+      const itemFallbackMap = createNormalizedHeaderMapFromRow_(itemHeaders);
+      const idxItemRefKey = getHeaderIndex_(itemMap, itemFallbackMap, ['RefKey']);
+      const idxItemCategory = getHeaderIndex_(itemMap, itemFallbackMap, ['Category']);
+      const idxItemProduct = getHeaderIndex_(itemMap, itemFallbackMap, ['Product']);
+
+      const existingItemsByKey = {};
+      const duplicateRowNumbers = [];
+      const orphanRowNumbers = [];
+
+      for (let j = 1; j < itemValues.length; j += 1) {
+        const row = itemValues[j];
+        if (normalizeString(readByIdx_(row, idxItemRefKey)) !== context.refKey) {
+          continue;
+        }
+
+        const itemKey = buildRefItemKey_(
+          readByIdx_(row, idxItemCategory),
+          readByIdx_(row, idxItemProduct)
+        );
+        const rowNumber = j + 1;
+
+        if (isBlank(itemKey)) {
+          orphanRowNumbers.push(rowNumber);
+          continue;
+        }
+
+        if (!existingItemsByKey[itemKey]) {
+          existingItemsByKey[itemKey] = { rowNumber: rowNumber, row: row };
+          continue;
+        }
+
+        // Business-critical cleanup:
+        // For a loaded refKey, category+product must identify a single editable row.
+        // Any duplicates are cleared during this update to prevent future mismatches.
+        duplicateRowNumbers.push(rowNumber);
+      }
+
+      const incomingItemsByKey = {};
+      const incomingOrder = [];
+      const incomingRows = context.builtItems.rows;
+      for (let x = 0; x < incomingRows.length; x += 1) {
+        const incomingRow = incomingRows[x];
+        const incomingKey = buildRefItemKey_(
+          readByIdx_(incomingRow, idxItemCategory),
+          readByIdx_(incomingRow, idxItemProduct)
+        );
+        if (isBlank(incomingKey)) {
+          throw appError('INVALID_SELECTED_ITEMS', 'Selected rows are missing category/product for update.', [
+            { index: x, field: 'category/product', detail: 'Both fields are required.' }
+          ]);
+        }
+        if (incomingItemsByKey[incomingKey]) {
+          throw appError('DUPLICATE_SELECTED_ITEM', 'Duplicate category/product rows in save payload are not allowed.', [
+            { field: 'itemKey', detail: incomingKey }
+          ]);
+        }
+        incomingItemsByKey[incomingKey] = { row: incomingRow };
+        incomingOrder.push(incomingKey);
+      }
+
+      const headerChanged =
+        existingHeaderActionTag !== context.actionTag ||
+        existingHeaderItemCount !== incomingRows.length ||
+        existingHeaderNotes !== context.notes ||
+        existingHeaderSourceMode !== context.sourceMode;
+
+      const itemsChanged =
+        duplicateRowNumbers.length > 0 ||
+        orphanRowNumbers.length > 0 ||
+        hasRefItemPayloadChanges_(incomingItemsByKey, existingItemsByKey, itemMap, itemFallbackMap);
+
+      if (!headerChanged && !itemsChanged) {
+        return {
+          refKey: context.refKey,
+          partyName: context.partyName,
+          actionTag: context.actionTag,
+          itemCount: context.builtItems.summary.length,
+          savedItems: context.builtItems.summary,
+          latestUpsert: { inserted: 0, updated: 0 },
+          updateMode: 'UPDATED_EXISTING',
+          updated: false,
+          noChanges: true
+        };
+      }
+
+      headerSheet
+        .getRange(matchedHeader.rowNumber, 1, 1, headerHeaders.length)
+        .setValues([context.headerRow]);
+
+      let updatedItemRows = 0;
+      const appendRows = [];
+      const staleRowNumbers = [];
+
+      for (let p = 0; p < incomingOrder.length; p += 1) {
+        const key = incomingOrder[p];
+        const incoming = incomingItemsByKey[key];
+        const existing = existingItemsByKey[key];
+        if (!existing) {
+          appendRows.push(incoming.row);
+          continue;
+        }
+
+        itemSheet
+          .getRange(existing.rowNumber, 1, 1, itemHeaders.length)
+          .setValues([incoming.row]);
+        updatedItemRows += 1;
+      }
+
+      const existingKeys = Object.keys(existingItemsByKey);
+      for (let q = 0; q < existingKeys.length; q += 1) {
+        const key = existingKeys[q];
+        if (!incomingItemsByKey[key]) {
+          staleRowNumbers.push(existingItemsByKey[key].rowNumber);
+        }
+      }
+
+      const rowsToClear = staleRowNumbers.concat(duplicateRowNumbers, orphanRowNumbers);
+      for (let r = 0; r < rowsToClear.length; r += 1) {
+        itemSheet.getRange(rowsToClear[r], 1, 1, itemHeaders.length).clearContent();
+      }
+
+      if (appendRows.length > 0) {
+        const startRow = itemSheet.getLastRow() + 1;
+        itemSheet.getRange(startRow, 1, appendRows.length, itemHeaders.length).setValues(appendRows);
+      }
+
+      const latestSummary = upsertPartyItemLatest(context.builtItems.latestEntries);
+
+      return {
+        refKey: context.refKey,
+        partyName: context.partyName,
+        actionTag: context.actionTag,
+        itemCount: context.builtItems.summary.length,
+        savedItems: context.builtItems.summary,
+        latestUpsert: latestSummary,
+        updateMode: 'UPDATED_EXISTING',
+        updated: true,
+        noChanges: false,
+        updatedItemRows: updatedItemRows,
+        appendedItemRows: appendRows.length,
+        clearedItemRows: rowsToClear.length
+      };
+    } finally {
+      try {
+        lock.releaseLock();
+      } catch (ignore) {
+        // no-op
+      }
+    }
+  }
+
+  function buildRefItemKey_(category, product) {
+    const categoryKey = normalizeKey(category);
+    const productKey = normalizeKey(product);
+    if (isBlank(categoryKey) || isBlank(productKey)) {
+      return '';
+    }
+    return categoryKey + '|' + productKey;
+  }
+
+  function hasRefItemPayloadChanges_(incomingItemsByKey, existingItemsByKey, itemMap, itemFallbackMap) {
+    const incomingKeys = Object.keys(incomingItemsByKey).sort();
+    const existingKeys = Object.keys(existingItemsByKey).sort();
+
+    if (incomingKeys.length !== existingKeys.length) {
+      return true;
+    }
+
+    for (let i = 0; i < incomingKeys.length; i += 1) {
+      if (incomingKeys[i] !== existingKeys[i]) {
+        return true;
+      }
+    }
+
+    for (let j = 0; j < incomingKeys.length; j += 1) {
+      const key = incomingKeys[j];
+      const incomingSignature = createComparableItemSignature_(
+        incomingItemsByKey[key].row,
+        itemMap,
+        itemFallbackMap
+      );
+      const existingSignature = createComparableItemSignature_(
+        existingItemsByKey[key].row,
+        itemMap,
+        itemFallbackMap
+      );
+      if (incomingSignature !== existingSignature) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function createComparableItemSignature_(row, map, fallbackMap) {
+    const idxParty = getHeaderIndex_(map, fallbackMap, ['PartyName']);
+    const idxActionTag = getHeaderIndex_(map, fallbackMap, ['ActionTag']);
+    const idxCategory = getHeaderIndex_(map, fallbackMap, ['Category']);
+    const idxProduct = getHeaderIndex_(map, fallbackMap, ['Product']);
+    const idxPaymentTerms = getHeaderIndex_(map, fallbackMap, ['PaymentTerms']);
+    const idxLatestListPrice = getHeaderIndex_(map, fallbackMap, ['LatestListPrice']);
+    const idxLatestWEF = getHeaderIndex_(map, fallbackMap, ['LatestWEF']);
+    const idxPreviousListPrice = getHeaderIndex_(map, fallbackMap, ['PreviousListPrice']);
+    const idxPreviousWEF = getHeaderIndex_(map, fallbackMap, ['PreviousWEF']);
+    const idxTDPercent = getHeaderIndex_(map, fallbackMap, ['TDPercent']);
+    const idxTDRate = getHeaderIndex_(map, fallbackMap, ['TD20Rate']);
+    const idxSpecialDiscPct = getHeaderIndex_(map, fallbackMap, ['SpecialDiscPct']);
+    const idxAfterSpecial = getHeaderIndex_(map, fallbackMap, ['AfterSpecialDiscRate']);
+    const idxGstMode = getHeaderIndex_(map, fallbackMap, ['GSTMode']);
+    const idxFreightMode = getHeaderIndex_(map, fallbackMap, ['FreightMode']);
+    const idxCdMode = getHeaderIndex_(map, fallbackMap, ['CDMode']);
+    const idxCdPercent = getHeaderIndex_(map, fallbackMap, ['CDPercent']);
+    const idxGstPercent = getHeaderIndex_(map, fallbackMap, ['GSTPercent']);
+    const idxGstAmount = getHeaderIndex_(map, fallbackMap, ['GSTAmount']);
+    const idxFinalRate = getHeaderIndex_(map, fallbackMap, ['FinalRate']);
+    const idxOwnerChecked = getHeaderIndex_(map, fallbackMap, ['OwnerChecked']);
+    const idxFinalChecked = getHeaderIndex_(map, fallbackMap, ['FinalActionChecked']);
+
+    return [
+      normalizeKey(readByIdx_(row, idxParty)),
+      normalizeActionTag_(readByIdx_(row, idxActionTag)),
+      normalizeKey(readByIdx_(row, idxCategory)),
+      normalizeKey(readByIdx_(row, idxProduct)),
+      normalizeNumericSignature_(readByIdx_(row, idxPaymentTerms), false),
+      normalizeNumericSignature_(readByIdx_(row, idxLatestListPrice), false),
+      normalizeString(readByIdx_(row, idxLatestWEF)),
+      normalizeNumericSignature_(readByIdx_(row, idxPreviousListPrice), true),
+      normalizeString(readByIdx_(row, idxPreviousWEF)),
+      normalizeNumericSignature_(readByIdx_(row, idxTDPercent), false),
+      normalizeNumericSignature_(readByIdx_(row, idxTDRate), false),
+      normalizeNumericSignature_(readByIdx_(row, idxSpecialDiscPct), false),
+      normalizeNumericSignature_(readByIdx_(row, idxAfterSpecial), false),
+      normalizeKey(readByIdx_(row, idxGstMode)),
+      normalizeKey(readByIdx_(row, idxFreightMode)),
+      normalizeKey(readByIdx_(row, idxCdMode)),
+      normalizeNumericSignature_(readByIdx_(row, idxCdPercent), false),
+      normalizeNumericSignature_(readByIdx_(row, idxGstPercent), false),
+      normalizeNumericSignature_(readByIdx_(row, idxGstAmount), false),
+      normalizeNumericSignature_(readByIdx_(row, idxFinalRate), false),
+      toBoolean_(readByIdx_(row, idxOwnerChecked), false) ? '1' : '0',
+      toBoolean_(readByIdx_(row, idxFinalChecked), false) ? '1' : '0'
+    ].join('|');
+  }
+
+  function normalizeNumericSignature_(value, allowBlank) {
+    if (isBlank(value)) {
+      return allowBlank ? '' : '0';
+    }
+    const num = toSafeNumber(value, null);
+    if (num === null) {
+      return normalizeString(value);
+    }
+    return String(round2(num));
   }
 
   function upsertPartyItemLatest(entries) {

@@ -2,17 +2,23 @@ import { memo } from 'react';
 
 function ActionBar({
   isAuthenticated,
+  isAdminUser = false,
+  showSaveFinal = true,
   savingType,
   disabled,
   onSaveOwner,
   onSaveFinal,
   onCopyRates,
+  onCopyPartyRates,
   copyRatesDisabled = false,
   copyRatesTooltip = '',
+  copyPartyRatesDisabled = false,
+  copyPartyRatesTooltip = '',
   auxiliaryNode
 }) {
   const saveDisabled = disabled || !isAuthenticated;
   const copyDisabled = disabled || copyRatesDisabled;
+  const copyPartyDisabled = disabled || copyPartyRatesDisabled;
 
   return (
     <section className="action-bar">
@@ -32,6 +38,20 @@ function ActionBar({
             </button>
           </span>
 
+          {isAdminUser ? (
+            <span title={copyPartyRatesTooltip}>
+              <button
+                type="button"
+                className="btn btn--admin"
+                data-tour="copy-party-rates-button"
+                onClick={onCopyPartyRates}
+                disabled={copyPartyDisabled}
+              >
+                Copy Party Rates
+              </button>
+            </span>
+          ) : null}
+
           <button
             type="button"
             className="btn"
@@ -42,15 +62,17 @@ function ActionBar({
             {savingType === 'owner' ? 'Saving Owner...' : 'Save Owner Approved'}
           </button>
 
-          <button
-            type="button"
-            className="btn"
-            data-tour="save-final-button"
-            onClick={onSaveFinal}
-            disabled={saveDisabled || savingType === 'final'}
-          >
-            {savingType === 'final' ? 'Saving Party Agreed...' : 'Save Party Agreed'}
-          </button>
+          {showSaveFinal ? (
+            <button
+              type="button"
+              className="btn"
+              data-tour="save-final-button"
+              onClick={onSaveFinal}
+              disabled={saveDisabled || savingType === 'final'}
+            >
+              {savingType === 'final' ? 'Saving Party Agreed...' : 'Save Party Agreed'}
+            </button>
+          ) : null}
         </div>
       </div>
     </section>

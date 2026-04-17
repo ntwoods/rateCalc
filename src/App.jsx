@@ -10,6 +10,7 @@ import UserPanel from './components/UserPanel';
 import InlineError from './components/InlineError';
 import Toast from './components/Toast';
 import { useAuth } from './hooks/useAuth';
+import { useUserRole } from './hooks/useUserRole';
 import { useBackendBootstrap } from './hooks/useBackendBootstrap';
 import { useBootstrap } from './hooks/useBootstrap';
 import { useProducts } from './hooks/useProducts';
@@ -30,6 +31,10 @@ import {
   buildOwnerApprovedRatesCopyData,
   copyPlainTextToClipboard
 } from './utils/copyRates';
+import {
+  buildCopyPartyRatesImageData,
+  copyPartyRatesImage
+} from './utils/copyPartyRatesImage';
 import './styles/app.css';
 
 const THEME_STORAGE_KEY = 'portal_theme';
@@ -46,12 +51,26 @@ function getInitialTheme() {
   return PORTAL_THEMES.DEFAULT;
 }
 
+function normalizeActionTag(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+}
+
 function App() {
   const auth = useAuth();
+  const signedInEmail = String(auth.user?.email || '').trim().toLowerCase();
 
   const { status, health, metadata } = useBackendBootstrap({
     includeBootstrap: false
   });
+
+  const userRole = useUserRole({
+    userEmail: signedInEmail,
+    enabled: auth.isAuthenticated && status === BACKEND_STATUS.CONNECTED
+  });
+  const isAdminUser = Boolean(userRole.isAdmin);
 
   const {
     settings,
@@ -70,6 +89,8 @@ function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState({ type: '', message: '' });
+  const [ownerBulkByCategoryEnabled, setOwnerBulkByCategoryEnabled] = useState(false);
+  const [adminAutoLoadPartyKey, setAdminAutoLoadPartyKey] = useState('');
 
   const {
     products,
@@ -104,7 +125,8 @@ function App() {
 
   const rateEditor = useRateEditor({
     products,
-    settings
+    settings,
+    ownerBulkByCategoryEnabled
   });
 
   const {
@@ -149,6 +171,51 @@ function App() {
   }, [selectedSnapshotRef]);
 
   useEffect(() => {
+    if (isAdminUser) {
+      return;
+    }
+    setOwnerBulkByCategoryEnabled(false);
+  }, [isAdminUser]);
+
+  useEffect(() => {
+    setAdminAutoLoadPartyKey('');
+  }, [selectedParty, isAdminUser]);
+
+  useEffect(() => {
+    if (!isAdminUser) {
+      return;
+    }
+
+    const partyKey = String(selectedParty || '').trim().toLowerCase();
+    if (!partyKey || historyLoading || adminAutoLoadPartyKey === partyKey) {
+      return;
+    }
+
+    const latestOwnerSnapshot = snapshotRefs.find(
+      (snapshot) => normalizeActionTag(snapshot?.actionTag) === 'OWNER_APPROVED'
+    );
+
+    if (latestOwnerSnapshot?.refKey) {
+      if (mode !== APP_MODES.SNAPSHOT) {
+        setMode(APP_MODES.SNAPSHOT);
+      }
+      if (selectedSnapshotRef !== latestOwnerSnapshot.refKey) {
+        setSelectedSnapshotRef(latestOwnerSnapshot.refKey);
+      }
+    }
+
+    setAdminAutoLoadPartyKey(partyKey);
+  }, [
+    isAdminUser,
+    selectedParty,
+    historyLoading,
+    snapshotRefs,
+    adminAutoLoadPartyKey,
+    mode,
+    selectedSnapshotRef
+  ]);
+
+  useEffect(() => {
     document.body.setAttribute('data-theme', theme);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -157,7 +224,6 @@ function App() {
     }
   }, [theme]);
 
-  const signedInEmail = String(auth.user?.email || '').trim();
   const partyCount = toNumberOrZero(parties.length);
   const toolbarDisabled = status !== BACKEND_STATUS.CONNECTED;
   const snapshotOptions = useMemo(() => {
@@ -201,8 +267,11 @@ function App() {
   const saveFlow = useSaveFlow({
     selectedParty,
     selectedRowsByType,
+    snapshotItemsByRowKey: activeSnapshotMap,
+    selectedSnapshotRef,
     signedInEmail,
     isAuthenticated: auth.isAuthenticated,
+    isAdminUser,
     mode,
     onAfterSave: handleAfterSave
   });
@@ -242,6 +311,13 @@ function App() {
     rateEditor.getRowKey
   ]);
 
+  const copyPartyRatesData = useMemo(() => {
+    return buildCopyPartyRatesImageData({
+      partyName: selectedParty,
+      ownerRows: selectedRowsByType.ownerRows
+    });
+  }, [selectedParty, selectedRowsByType.ownerRows]);
+
   const handleCopyRates = useCallback(async () => {
     saveFlow.clearFeedback();
     clearCopyFeedback();
@@ -268,6 +344,49 @@ function App() {
     }
   }, [copyRatesData, saveFlow.clearFeedback, clearCopyFeedback]);
 
+  const handleCopyPartyRates = useCallback(async () => {
+    saveFlow.clearFeedback();
+    clearCopyFeedback();
+
+    if (!isAdminUser) {
+      setCopyFeedback({
+        type: 'error',
+        message: 'Copy Party Rates is available for ADMIN users only.'
+      });
+      return;
+    }
+
+    if (!copyPartyRatesData.canCopy) {
+      setCopyFeedback({
+        type: 'error',
+        message: copyPartyRatesData.reason || 'No valid selected rows to generate party rates image.'
+      });
+      return;
+    }
+
+    try {
+      const result = await copyPartyRatesImage(copyPartyRatesData);
+      const copiedCount = toNumberOrZero(result?.itemCount || copyPartyRatesData.itemCount);
+      if (result?.method === 'clipboard') {
+        setCopyFeedback({
+          type: 'success',
+          message: `Party rates image copied (${copiedCount} item${copiedCount === 1 ? '' : 's'}).`
+        });
+        return;
+      }
+
+      setCopyFeedback({
+        type: 'success',
+        message: `Clipboard image copy not supported. Downloaded PNG fallback (${copiedCount} item${copiedCount === 1 ? '' : 's'}).`
+      });
+    } catch (error) {
+      setCopyFeedback({
+        type: 'error',
+        message: error?.message || 'Unable to generate/copy party rates image.'
+      });
+    }
+  }, [saveFlow.clearFeedback, clearCopyFeedback, isAdminUser, copyPartyRatesData]);
+
   const rateBasisButtonLabel = rateBasis === RATE_BASIS.LATEST ? 'Show Old List' : 'Show Latest List';
   const rateBasisText = rateBasis === RATE_BASIS.LATEST ? 'Latest List Visible' : 'Old List Visible';
   const copyRatesBlockedByLoading = toolbarDisabled || productsLoading || snapshotLoading;
@@ -277,6 +396,14 @@ function App() {
     : copyRatesBlockedByLoading
       ? 'Copy is unavailable while the table is loading.'
       : copyRatesData.reason || 'Copy owner-approved rates from the current view.';
+  const copyPartyRatesDisabled = !isAdminUser || copyRatesBlockedByLoading || !copyPartyRatesData.canCopy;
+  const copyPartyRatesTooltip = !isAdminUser
+    ? 'Available for ADMIN users only.'
+    : !selectedParty
+      ? 'Select a party to copy party rates.'
+      : copyRatesBlockedByLoading
+        ? 'Copy Party Rates is unavailable while the table is loading.'
+        : copyPartyRatesData.reason || 'Copy selected owner rows as a WhatsApp-friendly image.';
 
   const activeToastFeedback = copyFeedback.message ? copyFeedback : saveFlow.feedback;
   const clearActiveToast = copyFeedback.message ? clearCopyFeedback : saveFlow.clearFeedback;
@@ -309,6 +436,12 @@ function App() {
 
           <InlineError
             message={!auth.isAuthenticated ? auth.error : ''}
+            variant="soft"
+            role="status"
+          />
+
+          <InlineError
+            message={auth.isAuthenticated ? userRole.error : ''}
             variant="soft"
             role="status"
           />
@@ -367,6 +500,8 @@ function App() {
                         isAuthenticated={auth.isAuthenticated}
                         isUnavailable={auth.isUnavailable}
                         error={auth.error}
+                        role={userRole.role}
+                        isAdminUser={isAdminUser}
                         onSignIn={auth.signIn}
                         onSignOut={auth.signOut}
                         onRetry={auth.reload}
@@ -383,13 +518,18 @@ function App() {
 
           <ActionBar
             isAuthenticated={auth.isAuthenticated}
+            isAdminUser={isAdminUser}
+            showSaveFinal={!isAdminUser}
             savingType={saveFlow.savingType}
             disabled={toolbarDisabled || productsLoading || snapshotLoading}
             onSaveOwner={handleOpenOwnerConfirm}
             onSaveFinal={handleOpenFinalConfirm}
             onCopyRates={handleCopyRates}
+            onCopyPartyRates={handleCopyPartyRates}
             copyRatesDisabled={copyRatesDisabled}
             copyRatesTooltip={copyRatesTooltip}
+            copyPartyRatesDisabled={copyPartyRatesDisabled}
+            copyPartyRatesTooltip={copyPartyRatesTooltip}
             auxiliaryNode={(
               <div className="rate-source-bar">
                 <span className="rate-source-bar__active">{rateBasisText}</span>
@@ -400,6 +540,15 @@ function App() {
                 >
                   {rateBasisButtonLabel}
                 </button>
+                {isAdminUser ? (
+                  <button
+                    type="button"
+                    className={`btn btn--secondary btn--xs ${ownerBulkByCategoryEnabled ? 'btn--toggle-active' : ''}`}
+                    onClick={() => setOwnerBulkByCategoryEnabled((prev) => !prev)}
+                  >
+                    Category Owner Select: {ownerBulkByCategoryEnabled ? 'ON' : 'OFF'}
+                  </button>
+                ) : null}
               </div>
             )}
           />
@@ -419,6 +568,7 @@ function App() {
             editor={rateEditor}
             mode={mode}
             rateBasis={rateBasis}
+            canEditSnapshotConditions={isAdminUser}
             selectedSnapshotRef={selectedSnapshotRef}
             historyByRowKey={latestHistoryByRowKey}
             snapshotItemsByRowKey={activeSnapshotMap}

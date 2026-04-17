@@ -321,6 +321,51 @@ var MasterService = (function () {
     };
   }
 
+  // Centralized role lookup from Users sheet.
+  // Role semantics:
+  // - Active user + Role=ADMIN (case-insensitive, trimmed) => admin
+  // - all other values => non-admin
+  function getCurrentUserRole(userEmail) {
+    const normalizedEmail = normalizeString(userEmail).toLowerCase();
+    if (isBlank(normalizedEmail)) {
+      throw appError('USER_EMAIL_REQUIRED', 'userEmail is required.', [
+        { field: 'userEmail', detail: 'Provide userEmail query parameter.' }
+      ]);
+    }
+
+    const users = getUsersMap_();
+    const profile = users[normalizedEmail] || null;
+    if (!profile) {
+      return {
+        email: normalizedEmail,
+        name: '',
+        role: 'USER',
+        active: false,
+        found: false,
+        isAdmin: false
+      };
+    }
+
+    return {
+      email: normalizedEmail,
+      name: profile.name,
+      role: profile.role,
+      active: profile.active,
+      found: true,
+      isAdmin: profile.isAdmin
+    };
+  }
+
+  function isAdminUser(userEmail) {
+    const normalizedEmail = normalizeString(userEmail).toLowerCase();
+    if (isBlank(normalizedEmail)) {
+      return false;
+    }
+    const users = getUsersMap_();
+    const profile = users[normalizedEmail] || null;
+    return Boolean(profile && profile.active && profile.isAdmin);
+  }
+
   function getSpreadsheetConnectivity_() {
     const result = {
       configured: false,
@@ -347,6 +392,61 @@ var MasterService = (function () {
       result.error = err && err.message ? err.message : 'Unable to connect to spreadsheet.';
       return result;
     }
+  }
+
+  function getUsersMap_() {
+    const cacheKey = 'master_users_map_v1';
+    const cached = getCachedJson_(cacheKey);
+    if (cached && typeof cached === 'object') {
+      return cached;
+    }
+
+    const sheet = getSheetOrThrow(CONFIG.SHEETS.USERS);
+    const values = getAllValues(sheet);
+    if (values.length <= 1) {
+      putCachedJson_(cacheKey, {});
+      return {};
+    }
+
+    const headers = values[0];
+    const emailIdx = findHeaderIndex_(headers, 'Email');
+    const nameIdx = findHeaderIndex_(headers, 'Name');
+    const roleIdx = findHeaderIndex_(headers, 'Role');
+    const activeIdx = findHeaderIndex_(headers, 'Active');
+
+    if (emailIdx < 0 || roleIdx < 0) {
+      throw appError('USERS_HEADERS_INVALID', 'Users sheet must include Email and Role headers.');
+    }
+
+    const byEmail = {};
+    for (let i = 1; i < values.length; i += 1) {
+      const row = values[i];
+      const email = normalizeString(row[emailIdx]).toLowerCase();
+      if (isBlank(email)) {
+        continue;
+      }
+
+      const roleText = normalizeString(roleIdx >= 0 ? row[roleIdx] : '');
+      const normalizedRole = normalizeRole_(roleText);
+      byEmail[email] = {
+        email: email,
+        name: nameIdx >= 0 ? normalizeString(row[nameIdx]) : '',
+        role: normalizedRole,
+        active: activeIdx >= 0 ? toBoolean_(row[activeIdx], true) : true,
+        isAdmin: normalizedRole === 'ADMIN'
+      };
+    }
+
+    putCachedJson_(cacheKey, byEmail);
+    return byEmail;
+  }
+
+  function normalizeRole_(roleValue) {
+    const role = normalizeString(roleValue).toUpperCase();
+    if (role === 'ADMIN') {
+      return 'ADMIN';
+    }
+    return role || 'USER';
   }
 
   function buildListPriceHeaderMeta_(headers) {
@@ -507,6 +607,8 @@ var MasterService = (function () {
     getSettingsMap: getSettingsMap,
     getActiveParties: getActiveParties,
     getProductMaster: getProductMaster,
+    getCurrentUserRole: getCurrentUserRole,
+    isAdminUser: isAdminUser,
     parseListPriceRow: parseListPriceRow,
     extractPriceHistoryFromRow: extractPriceHistoryFromRow,
     pickLatestAndPrevious: pickLatestAndPrevious,

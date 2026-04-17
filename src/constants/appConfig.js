@@ -22,6 +22,7 @@ export const API_ACTIONS = Object.freeze({
   BOOTSTRAP: 'bootstrap',
   GET_PARTIES: 'getParties',
   GET_PRODUCTS: 'getProducts',
+  GET_CURRENT_USER_ROLE: 'getCurrentUserRole',
   GET_PARTY_SNAPSHOTS: 'getPartySnapshots',
   GET_SNAPSHOT_BY_REF: 'getSnapshotByRef',
   GET_PARTY_LATEST_HISTORY: 'getPartyLatestHistory',
