@@ -108,13 +108,12 @@ function buildConditionFooter(condition) {
   const paymentLine = condition.paymentTerms > 0
     ? `Payment Term: ${condition.paymentTerms} Days`
     : 'Payment Term: -';
-  const gstLine = `GST / Other Charges: ${condition.gstMode || '-'}`;
+  const gstLine = `GST: ${condition.gstMode || '-'}`;
   const freightLine = `Freight: ${condition.freightMode || '-'}`;
   const cdLine = condition.cdMode === 'PERCENT'
     ? `CD: ${condition.cdMode} (${formatPercent(condition.cdPercent)})`
     : `CD: ${condition.cdMode}${condition.cdPercent !== null ? ` (${formatPercent(condition.cdPercent)})` : ''}`;
-  const discLine = `Special Disc: ${formatPercent(condition.specialDiscPct)}`;
-  return [paymentLine, gstLine, freightLine, cdLine, discLine];
+  return [paymentLine, gstLine, freightLine, cdLine];
 }
 
 function buildGroups(ownerRows) {
