@@ -60,8 +60,7 @@ function resolveConditionMeta(row) {
     gstMode: normalizeMode(normalized.gstMode, 'EXTRA'),
     freightMode: normalizeMode(normalized.freightMode, 'FOR'),
     cdMode,
-    cdPercent,
-    specialDiscPct: toNumber(normalized.specialDiscPct, null)
+    cdPercent
   };
 }
 
@@ -95,19 +94,27 @@ function resolveRateColumns(row, condition) {
 
 function buildConditionSignature(condition) {
   return [
-    normalizeNumberSignature(condition.paymentTerms),
     condition.gstMode,
     condition.freightMode,
     condition.cdMode,
-    normalizeNumberSignature(condition.cdPercent),
-    normalizeNumberSignature(condition.specialDiscPct)
+    normalizeNumberSignature(condition.cdPercent)
   ].join('|');
 }
 
-function buildConditionFooter(condition) {
-  const paymentLine = condition.paymentTerms > 0
-    ? `Payment Term: ${condition.paymentTerms} Days`
-    : 'Payment Term: -';
+function buildPaymentTermsLabel(paymentTermsList) {
+  const values = Array.isArray(paymentTermsList) ? paymentTermsList : [];
+  if (values.length === 0) {
+    return '-';
+  }
+  if (values.length === 1) {
+    return `${values[0]} Days`;
+  }
+  return `Mixed (${values.join(' / ')} Days)`;
+}
+
+function buildConditionFooter(group) {
+  const condition = group.condition;
+  const paymentLine = `Payment Term: ${buildPaymentTermsLabel(group.paymentTermsList)}`;
   const gstLine = `GST: ${condition.gstMode || '-'}`;
   const freightLine = `Freight: ${condition.freightMode || '-'}`;
   const cdLine = condition.cdMode === 'PERCENT'
@@ -137,11 +144,14 @@ function buildGroups(ownerRows) {
         signature,
         order: index,
         condition,
+        paymentTermsSet: new Set(),
         rows: []
       });
     }
 
-    groupsBySignature.get(signature).rows.push({
+    const group = groupsBySignature.get(signature);
+    group.paymentTermsSet.add(condition.paymentTerms);
+    group.rows.push({
       order: index,
       itemName: productName,
       rate: rates.rate,
@@ -158,6 +168,9 @@ function buildGroups(ownerRows) {
     })
     .map((group) => ({
       ...group,
+      paymentTermsList: Array.from(group.paymentTermsSet.values())
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .sort((a, b) => a - b),
       rows: group.rows.sort((a, b) => a.order - b.order)
     }));
 }
@@ -206,7 +219,7 @@ export function buildCopyPartyRatesImageData({ partyName, ownerRows = [] }) {
 }
 
 function buildRateCardMarkup(copyData) {
-  const groupBlocks = copyData.groups.map((group, groupIndex) => {
+  const groupBlocks = copyData.groups.map((group) => {
     const isPercentMode = group.condition.cdMode === 'PERCENT';
     const headerCells = isPercentMode
       ? '<th>Item Name</th><th>Rate</th><th>Net Rate</th>'
@@ -220,13 +233,12 @@ function buildRateCardMarkup(copyData) {
       return `<tr><td>${escapeHtml(row.itemName)}</td>${rateCell}<td class="value">${escapeHtml(formatCurrencyINR(row.netRate ?? row.rate))}</td></tr>`;
     }).join('');
 
-    const footerLines = buildConditionFooter(group.condition)
+    const footerLines = buildConditionFooter(group)
       .map((line) => `<div>${escapeHtml(line)}</div>`)
       .join('');
 
     return `
       <section class="group">
-        <div class="group-title">Condition Group ${groupIndex + 1}</div>
         <table>
           <thead><tr>${headerCells}</tr></thead>
           <tbody>${rowMarkup}</tbody>
@@ -258,13 +270,6 @@ function buildRateCardMarkup(copyData) {
         border: 1px solid #dbe4ef;
         border-radius: 10px;
         overflow: hidden;
-      }
-      .copy-party-rates-card .group-title {
-        background: #f3f7fc;
-        font-size: 13px;
-        font-weight: 700;
-        padding: 8px 10px;
-        border-bottom: 1px solid #dbe4ef;
       }
       .copy-party-rates-card table {
         width: 100%;
