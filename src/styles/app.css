@@ -1641,6 +1641,9 @@
   margin-bottom: 0;
   padding: 6px 8px;
   gap: 8px;
+  position: relative;
+  z-index: 80;
+  overflow: visible;
 }
 
 .action-bar__row--fields {
@@ -1661,6 +1664,7 @@
   grid-template-columns: minmax(560px, 1fr) auto auto;
   align-items: end;
   gap: 8px;
+  overflow: visible;
 }
 
 .action-bar__filters {
@@ -1669,6 +1673,7 @@
   gap: 8px;
   align-items: end;
   min-width: 0;
+  overflow: visible;
 }
 
 .action-bar__filters .control-card {
@@ -1682,7 +1687,7 @@
 }
 
 .action-bar__filters .combo-list {
-  z-index: 1400;
+  z-index: 2000;
 }
 
 .rate-basis-toggle {
@@ -2086,6 +2091,11 @@
 
 .theme-root .discussion-control-bar {
   z-index: 40;
+  overflow: visible;
+}
+
+.theme-root .action-bar {
+  z-index: 80;
   overflow: visible;
 }
 
