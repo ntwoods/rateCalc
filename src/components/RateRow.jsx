@@ -220,15 +220,6 @@ function RateRow({
         />
       </td>
 
-      <td className="cell-party-select col-party-select">
-        <input
-          type="checkbox"
-          checked={Boolean(rowInput?.finalActionChecked)}
-          onChange={(event) => actions.setFinalActionChecked(rowKey, product.category, event.target.checked)}
-          aria-label={`Party agreed select ${product.product}`}
-        />
-      </td>
-
       <td className="cell-history col-history-info">
         {snapshotActive && snapshotItem ? (
           <div className="history-cell">

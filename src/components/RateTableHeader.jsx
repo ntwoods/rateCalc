@@ -29,9 +29,6 @@ function RateTableHeader({ tdPercent = 20, rateBasis = RATE_BASIS.LATEST }) {
         <th className="col-owner-select" data-tour="owner-row-actions">
           <span className="th-two-line">Owner<br />Select</span>
         </th>
-        <th className="col-party-select">
-          <span className="th-two-line">Party Agreed<br />Select</span>
-        </th>
         <th className="col-history-info">
           <span className="th-two-line">History<br />Info</span>
         </th>

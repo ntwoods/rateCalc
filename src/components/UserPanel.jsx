@@ -1,5 +1,4 @@
 import { memo } from 'react';
-import { safeText } from '../utils/formatters';
 
 function UserPanel({
   authStatus,
@@ -8,8 +7,6 @@ function UserPanel({
   isAuthenticated,
   isUnavailable,
   error,
-  role = 'USER',
-  isAdminUser = false,
   onSignIn,
   onSignOut,
   onRetry,
@@ -21,18 +18,11 @@ function UserPanel({
   return (
     <section className={panelClassName} aria-label="Signed-in user panel">
       {loading ? (
-        <span className="user-chip">Identity: Loading...</span>
+        <span className="user-chip">Loading...</span>
       ) : null}
 
       {!loading && isAuthenticated ? (
         <div className="user-panel__signed-in">
-          <div className="user-panel__identity">
-            <strong>{safeText(user?.name, 'Signed-in User')}</strong>
-            <span>{safeText(user?.email, '-')}</span>
-            <span className={`user-panel__role ${isAdminUser ? 'user-panel__role--admin' : ''}`}>
-              Role: {safeText(role, 'USER')}
-            </span>
-          </div>
           <button type="button" className="btn btn--secondary btn--xs" onClick={onSignOut}>
             Sign Out
           </button>
@@ -60,7 +50,7 @@ function UserPanel({
       ) : null}
 
       {!loading && !error ? (
-        <span className="user-panel__status">Auth: {authStatus}</span>
+        <span className="user-panel__status" aria-label={`Auth status: ${authStatus}`} />
       ) : null}
     </section>
   );

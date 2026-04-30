@@ -1,5 +1,5 @@
 function LoadingTable({ rows = 10 }) {
-  const cells = new Array(15).fill(null);
+  const cells = new Array(14).fill(null);
   const lines = new Array(rows).fill(null);
 
   return (

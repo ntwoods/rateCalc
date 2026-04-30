@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from './components/AppShell';
-import Toolbar from './components/Toolbar';
 import RateTable from './components/RateTable';
 import HistoryPanel from './components/HistoryPanel';
 import SnapshotSummary from './components/SnapshotSummary';
@@ -9,6 +8,10 @@ import ConfirmModal from './components/ConfirmModal';
 import UserPanel from './components/UserPanel';
 import InlineError from './components/InlineError';
 import Toast from './components/Toast';
+import ModeToggle from './components/ModeToggle';
+import PartySelector from './components/PartySelector';
+import SearchBox from './components/SearchBox';
+import SnapshotSelector from './components/SnapshotSelector';
 import { useAuth } from './hooks/useAuth';
 import { useUserRole } from './hooks/useUserRole';
 import { useBackendBootstrap } from './hooks/useBackendBootstrap';
@@ -244,15 +247,6 @@ function App() {
     });
   }, [snapshotRefs]);
 
-  const themeOptions = useMemo(() => {
-    return [
-      { value: PORTAL_THEMES.DEFAULT, label: 'Default Gloss' },
-      { value: PORTAL_THEMES.SUNSET, label: 'Sunset' },
-      { value: PORTAL_THEMES.NT_WOOD, label: 'NT Wood' },
-      { value: PORTAL_THEMES.AURORA, label: 'Aurora Mint' }
-    ];
-  }, []);
-
   const handleAfterSave = useCallback(async ({
     type,
     savedRowKeys
@@ -424,6 +418,21 @@ function App() {
             <div>
               <h2>Rate Discussion Workspace</h2>
             </div>
+            <UserPanel
+              authStatus={auth.status}
+              user={auth.user}
+              loading={auth.isLoading}
+              isAuthenticated={auth.isAuthenticated}
+              isUnavailable={auth.isUnavailable}
+              error={auth.error}
+              role={userRole.role}
+              isAdminUser={isAdminUser}
+              onSignIn={auth.signIn}
+              onSignOut={auth.signOut}
+              onRetry={auth.reload}
+              setSignInHost={auth.setSignInHost}
+              className="user-panel--corner"
+            />
           </div>
 
           <InlineError message={bootstrapError} variant="soft" />
@@ -461,57 +470,11 @@ function App() {
                 </div>
               </div>
             ) : (
-              <Toolbar
-                mode={mode}
-                onModeChange={setMode}
-                selectedParty={selectedParty}
-                onPartyChange={setSelectedParty}
-                selectedSnapshotRef={selectedSnapshotRef}
-                onSnapshotChange={setSelectedSnapshotRef}
-                productSearch={productSearch}
-                onProductSearchChange={setProductSearch}
-                parties={parties}
-                snapshots={snapshotOptions}
-                snapshotsLoading={historyLoading}
-                loading={bootstrapLoading}
-                disabled={toolbarDisabled}
-                headerActions={(
-                  <div className="toolbar__utilities">
-                    <div className="toolbar__utility-card toolbar__utility-card--theme">
-                      <div className="theme-switcher theme-switcher--compact">
-                        <label htmlFor="theme-select">Theme</label>
-                        <select
-                          id="theme-select"
-                          value={theme}
-                          onChange={(event) => setTheme(event.target.value)}
-                        >
-                          {themeOptions.map((item) => (
-                            <option key={item.value} value={item.value}>{item.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="toolbar__utility-card toolbar__utility-card--user">
-                      <UserPanel
-                        authStatus={auth.status}
-                        user={auth.user}
-                        loading={auth.isLoading}
-                        isAuthenticated={auth.isAuthenticated}
-                        isUnavailable={auth.isUnavailable}
-                        error={auth.error}
-                        role={userRole.role}
-                        isAdminUser={isAdminUser}
-                        onSignIn={auth.signIn}
-                        onSignOut={auth.signOut}
-                        onRetry={auth.reload}
-                        setSignInHost={auth.setSignInHost}
-                        className="user-panel--embedded"
-                      />
-                    </div>
-                  </div>
-                )}
-              />
+              <div className="toolbar toolbar--mode-only">
+                <div className="toolbar__row toolbar__row--top">
+                  <ModeToggle value={mode} onChange={setMode} disabled={toolbarDisabled} />
+                </div>
+              </div>
             )}
 
           </section>
@@ -519,26 +482,45 @@ function App() {
           <ActionBar
             isAuthenticated={auth.isAuthenticated}
             isAdminUser={isAdminUser}
-            showSaveFinal={!isAdminUser}
             savingType={saveFlow.savingType}
             disabled={toolbarDisabled || productsLoading || snapshotLoading}
             onSaveOwner={handleOpenOwnerConfirm}
-            onSaveFinal={handleOpenFinalConfirm}
-            onCopyRates={handleCopyRates}
-            onCopyPartyRates={handleCopyPartyRates}
-            copyRatesDisabled={copyRatesDisabled}
-            copyRatesTooltip={copyRatesTooltip}
-            copyPartyRatesDisabled={copyPartyRatesDisabled}
-            copyPartyRatesTooltip={copyPartyRatesTooltip}
+            filtersNode={(
+              <div className="action-bar__filters">
+                <PartySelector
+                  parties={parties}
+                  value={selectedParty}
+                  onChange={setSelectedParty}
+                  loading={bootstrapLoading}
+                  disabled={toolbarDisabled}
+                />
+
+                <SnapshotSelector
+                  mode={mode}
+                  value={selectedSnapshotRef}
+                  onChange={setSelectedSnapshotRef}
+                  options={snapshotOptions}
+                  loading={historyLoading}
+                  disabled={toolbarDisabled || !selectedParty}
+                />
+
+                <SearchBox
+                  value={productSearch}
+                  onChange={setProductSearch}
+                  disabled={toolbarDisabled}
+                />
+              </div>
+            )}
             auxiliaryNode={(
               <div className="rate-source-bar">
-                <span className="rate-source-bar__active">{rateBasisText}</span>
                 <button
                   type="button"
-                  className="btn btn--secondary"
+                  className={`rate-basis-toggle ${rateBasis === RATE_BASIS.OLD ? 'rate-basis-toggle--old' : ''}`}
                   onClick={handleToggleRateBasis}
+                  aria-pressed={rateBasis === RATE_BASIS.OLD}
+                  title={rateBasisButtonLabel}
                 >
-                  {rateBasisButtonLabel}
+                  <span>{rateBasisText}</span>
                 </button>
                 {isAdminUser ? (
                   <button
