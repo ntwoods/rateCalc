@@ -236,11 +236,12 @@ function buildGroupedCopyText({
     const orderedConditions = Array.from(termGroup.conditionGroups.values());
     orderedConditions.forEach((conditionGroup) => {
       lines.push(`Condition: ${conditionGroup.label || STANDARD_CONDITION}`);
+      lines.push('Item Rate');
 
       conditionGroup.rows
         .sort((a, b) => a.order - b.order)
         .forEach((row) => {
-          lines.push(`- ${row.product} - ${formatCurrencyINR(row.finalRate)}`);
+          lines.push(`${row.product} ${formatCurrencyINR(row.finalRate)}`);
         });
 
       lines.push('');

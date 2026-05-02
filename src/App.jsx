@@ -485,6 +485,9 @@ function App() {
             savingType={saveFlow.savingType}
             disabled={toolbarDisabled || productsLoading || snapshotLoading}
             onSaveOwner={handleOpenOwnerConfirm}
+            onCopyRates={handleCopyRates}
+            copyRatesDisabled={copyRatesDisabled}
+            copyRatesTitle={copyRatesTooltip}
             filtersNode={(
               <div className="action-bar__filters">
                 <PartySelector

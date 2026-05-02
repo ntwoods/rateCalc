@@ -5,6 +5,9 @@ function ActionBar({
   savingType,
   disabled,
   onSaveOwner,
+  onCopyRates,
+  copyRatesDisabled,
+  copyRatesTitle,
   filtersNode,
   auxiliaryNode
 }) {
@@ -17,6 +20,17 @@ function ActionBar({
         {auxiliaryNode}
 
         <div className="action-bar__buttons">
+          {onCopyRates ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={onCopyRates}
+              disabled={copyRatesDisabled}
+              title={copyRatesTitle}
+            >
+              Copy Rates
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn"
