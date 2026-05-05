@@ -10,3 +10,7 @@ export function makeRowKey(category, product) {
   return `${normalizeToken(category)}|${normalizeToken(product)}`;
 }
 
+export function makeAllRatesRowKey(partyName, category, product) {
+  return `${normalizeToken(partyName)}|${makeRowKey(category, product)}`;
+}
+

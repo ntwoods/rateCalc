@@ -149,3 +149,11 @@ export function calculateRowRate(masterRow = {}, normalizedInputs = {}, settings
     invalidFinalRate
   };
 }
+
+export function calculateNetRates(masterRow = {}, normalizedInputs = {}, settings = {}) {
+  return calculateRowRate(masterRow, {
+    ...normalizedInputs,
+    gstMode: 'PAID',
+    cdMode: 'NET_RATES'
+  }, settings);
+}

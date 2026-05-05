@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CD_MODES, FREIGHT_MODES, GST_MODES } from '../constants/appConfig';
 import { normalizeRowInputs } from '../utils/calcEngine';
-import { normalizeToken } from '../utils/keys';
+import { makeAllRatesRowKey, normalizeToken } from '../utils/keys';
 
 function getDefaultNetCd(settings) {
   const raw = Number(settings?.DEFAULT_NET_CD_PERCENT);
@@ -54,6 +54,12 @@ export function useRateEditor({
   const getCategoryKey = useCallback((category) => normalizeToken(category), []);
 
   const getRowKey = useCallback((product) => {
+    if (product?.rowKey) {
+      return product.rowKey;
+    }
+    if (product?.partyName) {
+      return makeAllRatesRowKey(product.partyName, product?.category, product?.product);
+    }
     return `${normalizeToken(product?.category)}|${normalizeToken(product?.product)}`;
   }, []);
 
@@ -311,9 +317,15 @@ export function useRateEditor({
     setRowInputsByKey((prev) => {
       let changed = false;
       const next = { ...prev };
+      const categoryRowKeys = new Set(
+        products
+          .filter((product) => getCategoryKey(product?.category) === categoryKey)
+          .map((product) => getRowKey(product))
+      );
+      categoryRowKeys.add(rowKey);
 
       Object.keys(next).forEach((key) => {
-        if (!key.startsWith(`${categoryKey}|`)) {
+        if (!categoryRowKeys.has(key) && !key.startsWith(`${categoryKey}|`)) {
           return;
         }
         if (Boolean(next[key]?.ownerChecked) === nextChecked) {
@@ -337,7 +349,7 @@ export function useRateEditor({
 
       return changed ? next : prev;
     });
-  }, [updateField, getCategoryKey, ownerBulkByCategoryEnabled, ensureRow]);
+  }, [updateField, getCategoryKey, ownerBulkByCategoryEnabled, ensureRow, products, getRowKey]);
 
   const setFinalActionChecked = useCallback((rowKey, category, checked) => {
     updateField(rowKey, getCategoryKey(category), 'finalActionChecked', Boolean(checked));
@@ -583,7 +595,7 @@ export function useRateEditor({
           return;
         }
 
-        const categoryKey = rowKey.split('|')[0];
+        const categoryKey = getCategoryKey(snapshot.category || rowKey.split('|')[0]);
         const current = ensureRow(next, rowKey, categoryKey);
 
         const patched = {

@@ -27,6 +27,7 @@ import {
   BACKEND_STATUS,
   PORTAL_THEMES,
   RATE_BASIS,
+  SPECIAL_SNAPSHOT_REFS,
   SNAPSHOT_VIEW_MODES
 } from './constants/appConfig';
 import { formatDate, safeText, toNumberOrZero } from './utils/formatters';
@@ -38,6 +39,10 @@ import {
   buildCopyPartyRatesImageData,
   copyPartyRatesImage
 } from './utils/copyPartyRatesImage';
+import {
+  buildOwnerApprovedExportRows,
+  exportOwnerApprovedRatesToXlsx
+} from './utils/exportRates';
 import './styles/app.css';
 
 const THEME_STORAGE_KEY = 'portal_theme';
@@ -92,7 +97,6 @@ function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState({ type: '', message: '' });
-  const [ownerBulkByCategoryEnabled, setOwnerBulkByCategoryEnabled] = useState(false);
   const [adminAutoLoadPartyKey, setAdminAutoLoadPartyKey] = useState('');
 
   const {
@@ -126,10 +130,28 @@ function App() {
     selectedSnapshotRef
   });
 
+  const showAllRatesActive = selectedSnapshotRef === SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES;
+  const gridProducts = useMemo(() => {
+    if (!showAllRatesActive) {
+      return products;
+    }
+    return snapshotItems.map((item) => ({
+      rowKey: item.rowKey,
+      partyName: item.partyName,
+      category: item.category,
+      product: item.product,
+      paymentTerms: item.paymentTerms,
+      latestListPrice: item.latestListPrice,
+      latestWEF: item.latestWEF,
+      previousListPrice: item.previousListPrice,
+      previousWEF: item.previousWEF
+    }));
+  }, [showAllRatesActive, products, snapshotItems]);
+
   const rateEditor = useRateEditor({
-    products,
+    products: gridProducts,
     settings,
-    ownerBulkByCategoryEnabled
+    ownerBulkByCategoryEnabled: true
   });
 
   const {
@@ -139,7 +161,7 @@ function App() {
     unmatchedSnapshotCount,
     selectedRowsByType
   } = useRateGridView({
-    products,
+    products: gridProducts,
     settings,
     mode,
     selectedSnapshotRef,
@@ -172,13 +194,6 @@ function App() {
     }
     setContextPanelOpen(true);
   }, [selectedSnapshotRef]);
-
-  useEffect(() => {
-    if (isAdminUser) {
-      return;
-    }
-    setOwnerBulkByCategoryEnabled(false);
-  }, [isAdminUser]);
 
   useEffect(() => {
     setAdminAutoLoadPartyKey('');
@@ -230,7 +245,7 @@ function App() {
   const partyCount = toNumberOrZero(parties.length);
   const toolbarDisabled = status !== BACKEND_STATUS.CONNECTED;
   const snapshotOptions = useMemo(() => {
-    return snapshotRefs.map((item) => {
+    const options = snapshotRefs.map((item) => {
       const dateText = formatDate(item.snapshotDateTime, {
         dateStyle: 'medium',
         timeStyle: 'short'
@@ -245,7 +260,20 @@ function App() {
         label: `${dateText} | ${actionText} | ${countText} rows`
       };
     });
-  }, [snapshotRefs]);
+
+    if (selectedParty) {
+      return [
+        {
+          refKey: SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES,
+          value: SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES,
+          label: 'Show All Rates'
+        },
+        ...options
+      ];
+    }
+
+    return options;
+  }, [snapshotRefs, selectedParty]);
 
   const handleAfterSave = useCallback(async ({
     type,
@@ -311,6 +339,15 @@ function App() {
       ownerRows: selectedRowsByType.ownerRows
     });
   }, [selectedParty, selectedRowsByType.ownerRows]);
+
+  const exportRatesData = useMemo(() => {
+    return buildOwnerApprovedExportRows({
+      displayedProducts,
+      activeSnapshotMap,
+      getRowKey: rateEditor.getRowKey,
+      settings
+    });
+  }, [displayedProducts, activeSnapshotMap, rateEditor.getRowKey, settings]);
 
   const handleCopyRates = useCallback(async () => {
     saveFlow.clearFeedback();
@@ -381,10 +418,29 @@ function App() {
     }
   }, [saveFlow.clearFeedback, clearCopyFeedback, isAdminUser, copyPartyRatesData]);
 
+  const handleExportRates = useCallback(() => {
+    saveFlow.clearFeedback();
+    clearCopyFeedback();
+
+    try {
+      const fileName = exportOwnerApprovedRatesToXlsx(exportRatesData);
+      setCopyFeedback({
+        type: 'success',
+        message: `Exported ${exportRatesData.itemCount} item${exportRatesData.itemCount === 1 ? '' : 's'} to ${fileName}.`
+      });
+    } catch (error) {
+      setCopyFeedback({
+        type: 'error',
+        message: error?.message || 'Unable to export rates.'
+      });
+    }
+  }, [exportRatesData, saveFlow.clearFeedback, clearCopyFeedback]);
+
   const rateBasisButtonLabel = rateBasis === RATE_BASIS.LATEST ? 'Show Old List' : 'Show Latest List';
   const rateBasisText = rateBasis === RATE_BASIS.LATEST ? 'Latest List Visible' : 'Old List Visible';
   const copyRatesBlockedByLoading = toolbarDisabled || productsLoading || snapshotLoading;
   const copyRatesDisabled = copyRatesBlockedByLoading || !copyRatesData.canCopy;
+  const exportRatesDisabled = copyRatesBlockedByLoading;
   const copyRatesTooltip = !selectedParty
     ? 'Select a party to copy rates.'
     : copyRatesBlockedByLoading
@@ -483,9 +539,14 @@ function App() {
             isAuthenticated={auth.isAuthenticated}
             isAdminUser={isAdminUser}
             savingType={saveFlow.savingType}
-            disabled={toolbarDisabled || productsLoading || snapshotLoading}
+            disabled={toolbarDisabled || productsLoading || snapshotLoading || showAllRatesActive}
             onSaveOwner={handleOpenOwnerConfirm}
             onCopyRates={handleCopyRates}
+            showCopyRates={snapshotActive}
+            onExportRates={handleExportRates}
+            showExportRates={snapshotActive}
+            exportRatesDisabled={exportRatesDisabled}
+            exportRatesTitle={snapshotActive ? 'Export owner-approved saved rates.' : 'Load saved references to export rates.'}
             copyRatesDisabled={copyRatesDisabled}
             copyRatesTitle={copyRatesTooltip}
             filtersNode={(
@@ -525,15 +586,6 @@ function App() {
                 >
                   <span>{rateBasisText}</span>
                 </button>
-                {isAdminUser ? (
-                  <button
-                    type="button"
-                    className={`btn btn--secondary btn--xs ${ownerBulkByCategoryEnabled ? 'btn--toggle-active' : ''}`}
-                    onClick={() => setOwnerBulkByCategoryEnabled((prev) => !prev)}
-                  >
-                    Category Owner Select: {ownerBulkByCategoryEnabled ? 'ON' : 'OFF'}
-                  </button>
-                ) : null}
               </div>
             )}
           />

@@ -6,8 +6,13 @@ function ActionBar({
   disabled,
   onSaveOwner,
   onCopyRates,
+  showCopyRates = true,
   copyRatesDisabled,
   copyRatesTitle,
+  onExportRates,
+  showExportRates = false,
+  exportRatesDisabled = false,
+  exportRatesTitle = '',
   filtersNode,
   auxiliaryNode
 }) {
@@ -20,7 +25,7 @@ function ActionBar({
         {auxiliaryNode}
 
         <div className="action-bar__buttons">
-          {onCopyRates ? (
+          {showCopyRates && onCopyRates ? (
             <button
               type="button"
               className="btn btn--secondary"
@@ -29,6 +34,17 @@ function ActionBar({
               title={copyRatesTitle}
             >
               Copy Rates
+            </button>
+          ) : null}
+          {showExportRates && onExportRates ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={onExportRates}
+              disabled={exportRatesDisabled}
+              title={exportRatesTitle}
+            >
+              Export
             </button>
           ) : null}
           <button

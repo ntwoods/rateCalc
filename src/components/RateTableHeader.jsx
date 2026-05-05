@@ -26,6 +26,7 @@ function RateTableHeader({ tdPercent = 20, rateBasis = RATE_BASIS.LATEST }) {
         <th className="col-cd-mode" data-tour="cd-column">CD</th>
         <th className="col-cd-percent">CD %</th>
         <th className="col-final-rate">Final Rate</th>
+        <th className="col-net-rates">NET RATES</th>
         <th className="col-owner-select" data-tour="owner-row-actions">
           <span className="th-two-line">Owner<br />Select</span>
         </th>

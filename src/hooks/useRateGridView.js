@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { APP_MODES, RATE_BASIS, SNAPSHOT_VIEW_MODES } from '../constants/appConfig';
-import { calculateRowRate } from '../utils/calcEngine';
+import { calculateNetRates, calculateRowRate } from '../utils/calcEngine';
 
 function resolveMasterValues(product, snapshotItem) {
   if (!snapshotItem) {
@@ -62,7 +62,7 @@ export function useRateGridView({
     }
 
     return products.filter((product) => {
-      const rowKey = makeRowKey(product.category, product.product);
+      const rowKey = product.rowKey || makeRowKey(product.category, product.product);
       return Boolean(activeSnapshotMap[rowKey]);
     });
   }, [products, mode, selectedSnapshotRef, snapshotViewMode, activeSnapshotMap, makeRowKey]);
@@ -94,7 +94,7 @@ export function useRateGridView({
     const finalRows = [];
 
     displayedProducts.forEach((product) => {
-      const rowKey = rateEditor.getRowKey(product);
+      const rowKey = product.rowKey || rateEditor.getRowKey(product);
       const rowMeta = rateEditor.rowMetaByKey[rowKey];
       if (!rowMeta) {
         return;
@@ -129,6 +129,19 @@ export function useRateGridView({
             finalRate: null,
             invalidFinalRate: true
           };
+      const netRatesCalc = hasSourceListPrice
+        ? calculateNetRates(
+            {
+              latestListPrice: sourceListPrice,
+              paymentTerms: resolvedMaster.paymentTerms
+            },
+            rowMeta.normalized,
+            settings
+          )
+        : {
+            finalRate: null,
+            invalidFinalRate: true
+          };
 
       const row = {
         rowKey,
@@ -144,7 +157,8 @@ export function useRateGridView({
         ownerChecked: Boolean(rowMeta.rowInput?.ownerChecked),
         finalActionChecked: Boolean(rowMeta.rowInput?.finalActionChecked),
         normalized: rowMeta.normalized,
-        calc
+        calc,
+        netRatesCalc
       };
 
       if (row.ownerChecked) {

@@ -25,6 +25,7 @@ export const API_ACTIONS = Object.freeze({
   GET_CURRENT_USER_ROLE: 'getCurrentUserRole',
   GET_PARTY_SNAPSHOTS: 'getPartySnapshots',
   GET_SNAPSHOT_BY_REF: 'getSnapshotByRef',
+  GET_ALL_LATEST_RATES: 'getAllLatestRates',
   GET_PARTY_LATEST_HISTORY: 'getPartyLatestHistory',
   REBUILD_INDEXES: 'rebuildIndexes',
   SETUP_WORKBOOK: 'setupWorkbook',
@@ -49,6 +50,10 @@ export const APP_MODES = Object.freeze({
 export const SNAPSHOT_VIEW_MODES = Object.freeze({
   OVERLAY: 'OVERLAY',
   SNAPSHOT_ONLY: 'SNAPSHOT_ONLY'
+});
+
+export const SPECIAL_SNAPSHOT_REFS = Object.freeze({
+  SHOW_ALL_RATES: '__SHOW_ALL_RATES__'
 });
 
 export const RATE_BASIS = Object.freeze({

@@ -96,6 +96,19 @@ var CalcService = (function () {
     };
   }
 
+  function calculateNetRates(input, settings) {
+    const normalizedInput = normalizeEnums(input || {});
+    normalizedInput.gstMode = CONFIG.ENUM_VALUES.GST_MODE_PAID;
+    normalizedInput.GSTMode = CONFIG.ENUM_VALUES.GST_MODE_PAID;
+    normalizedInput.cdMode = CONFIG.ENUM_VALUES.CD_MODE_NET_RATES;
+    normalizedInput.CDMode = CONFIG.ENUM_VALUES.CD_MODE_NET_RATES;
+    normalizedInput.cdPercent = toSafeNumber(
+      readAny_(settings || {}, ['DEFAULT_NET_CD_PERCENT', 'defaultNetCdPercent']),
+      5
+    );
+    return calculateItemRate(normalizedInput, settings);
+  }
+
   function getGstPercent(paymentTerms, settings) {
     const enumConfig = getEnumConfig_();
     const normalizedSettings = normalizeSettings_(settings || {});
@@ -289,6 +302,7 @@ var CalcService = (function () {
 
   return {
     calculateItemRate: calculateItemRate,
+    calculateNetRates: calculateNetRates,
     getGstPercent: getGstPercent,
     validateRateInput: validateRateInput,
     normalizeEnums: normalizeEnums,

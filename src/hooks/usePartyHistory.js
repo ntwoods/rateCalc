@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/apiClient';
-import { API_ACTIONS } from '../constants/appConfig';
+import { API_ACTIONS, SPECIAL_SNAPSHOT_REFS } from '../constants/appConfig';
 import { buildErrorMessage } from '../utils/helpers';
 import { toNumberOrZero } from '../utils/formatters';
-import { makeRowKey, normalizeToken } from '../utils/keys';
+import { makeAllRatesRowKey, makeRowKey, normalizeToken } from '../utils/keys';
 
 function readAny(obj, keys, fallback = '') {
   if (!obj || typeof obj !== 'object') {
@@ -56,6 +56,14 @@ function toBoolean(value) {
   }
   const text = String(value ?? '').trim().toLowerCase();
   return ['true', '1', 'yes', 'y'].includes(text);
+}
+
+function toOptionalNumber(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
 }
 
 function normalizeHistoryItem(rawItem) {
@@ -125,9 +133,16 @@ function normalizeSnapshotItem(rawItem) {
   }
 
   const rowKey = makeRowKey(category, product);
+  const partyName = String(readAny(rawItem, ['PartyName', 'partyName'])).trim();
+  const isAllRatesItem = Boolean(readAny(rawItem, ['_showAllRates']));
+  const effectiveRowKey = isAllRatesItem && partyName
+    ? makeAllRatesRowKey(partyName, category, product)
+    : rowKey;
 
   return {
-    rowKey,
+    rowKey: effectiveRowKey,
+    baseRowKey: rowKey,
+    partyName,
     category,
     product,
     actionTag: normalizeActionTag(readAny(rawItem, ['ActionTag', 'actionTag'])),
@@ -148,7 +163,9 @@ function normalizeSnapshotItem(rawItem) {
     freightMode: String(readAny(rawItem, ['FreightMode', 'freightMode'])).trim().toUpperCase(),
     cdMode: String(readAny(rawItem, ['CDMode', 'cdMode'])).trim().toUpperCase(),
     cdPercent: toNumberOrZero(readAny(rawItem, ['CDPercent', 'cdPercent'])),
+    afterSpecialDiscRate: toOptionalNumber(readAny(rawItem, ['AfterSpecialDiscRate', 'afterSpecialDiscRate'], null)),
     finalRate: toNumberOrZero(readAny(rawItem, ['FinalRate', 'finalRate'])),
+    netRates: toOptionalNumber(readAny(rawItem, ['NetRates', 'netRates'], null)),
     ownerChecked: toBoolean(readAny(rawItem, ['OwnerChecked', 'ownerChecked'])),
     finalActionChecked: toBoolean(readAny(rawItem, ['FinalActionChecked', 'finalActionChecked']))
   };
@@ -247,7 +264,10 @@ export function usePartyHistory({ selectedParty = '', selectedSnapshotRef = '' }
     setSnapshotError('');
 
     try {
-      const result = await apiClient.get(API_ACTIONS.GET_SNAPSHOT_BY_REF, { refKey });
+      const isShowAllRates = refKey === SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES;
+      const result = isShowAllRates
+        ? await apiClient.get(API_ACTIONS.GET_ALL_LATEST_RATES)
+        : await apiClient.get(API_ACTIONS.GET_SNAPSHOT_BY_REF, { refKey });
       const payload = result?.data || {};
 
       const normalizedHeader = payload.header && typeof payload.header === 'object'
@@ -262,7 +282,10 @@ export function usePartyHistory({ selectedParty = '', selectedSnapshotRef = '' }
         : null;
 
       const normalizedItems = Array.isArray(payload.items)
-        ? payload.items.map(normalizeSnapshotItem).filter(Boolean)
+        ? payload.items
+            .map((item) => (isShowAllRates ? { ...item, _showAllRates: true } : item))
+            .map(normalizeSnapshotItem)
+            .filter(Boolean)
         : [];
 
       setSnapshotHeader(normalizedHeader);

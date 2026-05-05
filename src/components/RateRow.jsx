@@ -5,7 +5,7 @@ import {
   GST_MODES,
   RATE_BASIS
 } from '../constants/appConfig';
-import { calculateRowRate } from '../utils/calcEngine';
+import { calculateNetRates, calculateRowRate } from '../utils/calcEngine';
 import { formatCurrencyINR, formatDate, safeText } from '../utils/formatters';
 import HistoryBadge from './HistoryBadge';
 
@@ -95,6 +95,20 @@ function RateRow({
     }, normalized || {}, settings || {});
   }, [activeListPrice, displayMaster.paymentTerms, normalized, settings, hasActiveListPrice]);
 
+  const netRatesCalc = useMemo(() => {
+    if (!hasActiveListPrice) {
+      return {
+        finalRate: null,
+        invalidFinalRate: true
+      };
+    }
+
+    return calculateNetRates({
+      latestListPrice: activeListPrice,
+      paymentTerms: displayMaster.paymentTerms
+    }, normalized || {}, settings || {});
+  }, [activeListPrice, displayMaster.paymentTerms, normalized, settings, hasActiveListPrice]);
+
   const showCdHint = normalized?.cdMode === 'PERCENT' && normalized?.cdPercentMissing;
   const invalidSpecial = Boolean(normalized?.specialDiscInvalid);
   const invalidCd = Boolean(normalized?.cdPercentInvalid || normalized?.cdPercentTooHigh);
@@ -129,7 +143,10 @@ function RateRow({
 
   return (
     <tr className={rowClassName}>
-      <td className="cell-product col-product">{product.product}</td>
+      <td className="cell-product col-product">
+        {product.partyName ? <span className="party-inline">{product.partyName}</span> : null}
+        <span>{product.product}</span>
+      </td>
       <td className="col-payment-terms">
         <span className="terms-chip">{displayMaster.paymentTerms}</span>
       </td>
@@ -208,6 +225,12 @@ function RateRow({
       <td className="cell-money cell-final-rate col-final-rate">
         <span className="final-rate-pill">
           {calc.finalRate === null || calc.invalidFinalRate ? '-' : formatCurrencyINR(calc.finalRate)}
+        </span>
+      </td>
+
+      <td className="cell-money cell-net-rates col-net-rates">
+        <span className="net-rates-pill">
+          {netRatesCalc.finalRate === null || netRatesCalc.invalidFinalRate ? '-' : formatCurrencyINR(netRatesCalc.finalRate)}
         </span>
       </td>
 

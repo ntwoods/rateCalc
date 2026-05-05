@@ -906,6 +906,11 @@
   width: 8%;
 }
 
+.rate-table th.col-net-rates,
+.rate-table td.col-net-rates {
+  width: 8.5%;
+}
+
 .rate-table th.col-gst,
 .rate-table td.col-gst {
   width: 6%;
@@ -975,10 +980,6 @@
   background: #f8fbff;
 }
 
-.rate-table tbody tr:nth-child(even) td {
-  background: #fcfdff;
-}
-
 .rate-table tbody tr.rate-row--history-owner td,
 .rate-table tbody tr.rate-row--snapshot-owner td {
   background: #fffdf2;
@@ -1016,6 +1017,14 @@
   color: #274e74;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.party-inline {
+  display: block;
+  margin-bottom: 2px;
+  color: #5a728c;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .rate-table .cell-money {
@@ -1539,6 +1548,22 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.net-rates-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  width: 100%;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: #fff0d6;
+  border: 1px solid #e6ba68;
+  color: #0f141b;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 1px rgba(8, 12, 18, 0.22);
 }
 
 .toolbar--mode-only {
@@ -2176,12 +2201,31 @@
   border-bottom: 1px solid var(--theme-table-grid);
 }
 
-.theme-root .rate-table tbody tr:nth-child(even) td {
-  background: var(--theme-table-row-even);
-}
-
 .theme-root .rate-table tbody tr:hover td {
   background: var(--theme-table-row-hover);
+}
+
+.rate-table thead th.col-after-special,
+.rate-table tbody td.col-after-special,
+.theme-root .rate-table thead th.col-after-special,
+.theme-root .rate-table tbody td.col-after-special,
+.theme-root .rate-table tbody tr:hover td.col-after-special,
+.theme-root .rate-table tbody tr[class*='rate-row--'] td.col-after-special {
+  background: #f6e7ff;
+}
+
+.rate-table thead th.col-net-rates,
+.rate-table tbody td.col-net-rates,
+.theme-root .rate-table thead th.col-net-rates,
+.theme-root .rate-table tbody td.col-net-rates,
+.theme-root .rate-table tbody tr:hover td.col-net-rates,
+.theme-root .rate-table tbody tr[class*='rate-row--'] td.col-net-rates {
+  background: #fff2dc;
+}
+
+.theme-root .rate-table thead th.col-after-special,
+.theme-root .rate-table thead th.col-net-rates {
+  color: var(--theme-table-head-text);
 }
 
 .theme-root .top-bar__brand-controls {

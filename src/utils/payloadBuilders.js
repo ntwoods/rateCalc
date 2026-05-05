@@ -32,7 +32,9 @@ function buildItemPayload(row) {
       ? toNumber(normalized.cdPercent, 0)
       : toNumber(normalized.defaultNetCdPercent, 0),
     ownerChecked: Boolean(row.ownerChecked),
-    finalActionChecked: Boolean(row.finalActionChecked)
+    finalActionChecked: Boolean(row.finalActionChecked),
+    afterSpecialDiscRate: toNumber(row.calc?.afterSpecialDiscRate, 0),
+    netRates: toNumber(row.netRatesCalc?.finalRate, 0)
   };
 }
 

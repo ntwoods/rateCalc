@@ -27,6 +27,8 @@ function routeRequest(method, e) {
         return handleGetPartySnapshotsRoute_(ctx);
       case normalizeKey(CONFIG.ACTIONS.GET_SNAPSHOT_BY_REF):
         return handleGetSnapshotByRefRoute_(ctx);
+      case normalizeKey(CONFIG.ACTIONS.GET_ALL_LATEST_RATES):
+        return handleGetAllLatestRatesRoute_(ctx);
       case normalizeKey(CONFIG.ACTIONS.GET_PARTY_LATEST_HISTORY):
         return handleGetPartyLatestHistoryRoute_(ctx);
       case normalizeKey(CONFIG.ACTIONS.REBUILD_INDEXES):
@@ -109,6 +111,12 @@ function handleGetSnapshotByRefRoute_(ctx) {
   requireMethod_(ctx, 'GET', CONFIG.ACTIONS.GET_SNAPSHOT_BY_REF);
   const data = LogService.getSnapshotByRef(readParam_(ctx, ['refkey', 'ref_key', 'ref']));
   return respondOk('Snapshot fetched.', data);
+}
+
+function handleGetAllLatestRatesRoute_(ctx) {
+  requireMethod_(ctx, 'GET', CONFIG.ACTIONS.GET_ALL_LATEST_RATES);
+  const data = LogService.getAllLatestRates();
+  return respondOk('All latest saved rates fetched.', data);
 }
 
 function handleGetPartyLatestHistoryRoute_(ctx) {

@@ -238,8 +238,10 @@ var LogService = (function () {
       };
 
       let calc;
+      let netRatesCalc;
       try {
         calc = CalcService.calculateItemRate(calcInput, context.settings);
+        netRatesCalc = CalcService.calculateNetRates(calcInput, context.settings);
       } catch (err) {
         errors.push({
           index: i,
@@ -280,6 +282,7 @@ var LogService = (function () {
         calc.gstPercent,
         calc.gstAmount,
         calc.finalRate,
+        netRatesCalc.finalRate,
         ownerChecked,
         finalActionChecked,
         context.createdAt
@@ -295,7 +298,8 @@ var LogService = (function () {
         freightMode: calc.freightMode,
         cdMode: calc.cdMode,
         appliedCdPercent: calc.appliedCdPercent,
-        finalRate: calc.finalRate
+        finalRate: calc.finalRate,
+        netRates: netRatesCalc.finalRate
       });
 
       latestEntries.push({
@@ -614,6 +618,7 @@ var LogService = (function () {
     const idxGstPercent = getHeaderIndex_(map, fallbackMap, ['GSTPercent']);
     const idxGstAmount = getHeaderIndex_(map, fallbackMap, ['GSTAmount']);
     const idxFinalRate = getHeaderIndex_(map, fallbackMap, ['FinalRate']);
+    const idxNetRates = getHeaderIndex_(map, fallbackMap, ['NetRates']);
     const idxOwnerChecked = getHeaderIndex_(map, fallbackMap, ['OwnerChecked']);
     const idxFinalChecked = getHeaderIndex_(map, fallbackMap, ['FinalActionChecked']);
 
@@ -638,6 +643,7 @@ var LogService = (function () {
       normalizeNumericSignature_(readByIdx_(row, idxGstPercent), false),
       normalizeNumericSignature_(readByIdx_(row, idxGstAmount), false),
       normalizeNumericSignature_(readByIdx_(row, idxFinalRate), false),
+      normalizeNumericSignature_(readByIdx_(row, idxNetRates), true),
       toBoolean_(readByIdx_(row, idxOwnerChecked), false) ? '1' : '0',
       toBoolean_(readByIdx_(row, idxFinalChecked), false) ? '1' : '0'
     ].join('|');
@@ -950,6 +956,101 @@ var LogService = (function () {
     return {
       refKey: targetRefKey,
       header: headerRecord,
+      items: items,
+      itemCount: items.length
+    };
+  }
+
+  function getAllLatestRates() {
+    const itemSheet = getSheetOrThrow(CONFIG.SHEETS.RATE_LOG_ITEMS);
+    const itemValues = getAllValues(itemSheet);
+    if (itemValues.length <= 1) {
+      return {
+        refKey: 'SHOW_ALL_RATES',
+        header: {
+          RefKey: 'SHOW_ALL_RATES',
+          PartyName: 'All Parties',
+          ActionTag: 'OWNER_APPROVED',
+          SnapshotDateTime: nowIso(),
+          ItemCount: 0
+        },
+        items: [],
+        itemCount: 0
+      };
+    }
+
+    const headers = itemValues[0];
+    const map = createNormalizedHeaderMapFromRow_(headers);
+    const fallbackMap = createNormalizedHeaderMapFromRow_(CONFIG.WORKBOOK_SHEETS.RateLogItems);
+    const idxParty = getHeaderIndex_(map, fallbackMap, ['PartyName']);
+    const idxCategory = getHeaderIndex_(map, fallbackMap, ['Category']);
+    const idxProduct = getHeaderIndex_(map, fallbackMap, ['Product']);
+    const idxSnapshot = getHeaderIndex_(map, fallbackMap, ['SnapshotDateTime']);
+    const idxCreatedAt = getHeaderIndex_(map, fallbackMap, ['CreatedAt']);
+
+    const latestByKey = {};
+    for (let i = 1; i < itemValues.length; i += 1) {
+      const row = itemValues[i];
+      const partyName = normalizeString(readByIdx_(row, idxParty));
+      const category = normalizeString(readByIdx_(row, idxCategory));
+      const product = normalizeString(readByIdx_(row, idxProduct));
+      if (isBlank(partyName) || isBlank(category) || isBlank(product)) {
+        continue;
+      }
+
+      const epoch = maxEpoch_([
+        readByIdx_(row, idxSnapshot),
+        readByIdx_(row, idxCreatedAt)
+      ]);
+      const key = buildLatestKey_(partyName, category, product);
+      const candidate = {
+        row: row,
+        epoch: epoch,
+        rowNumber: i + 1
+      };
+
+      const existing = latestByKey[key];
+      if (!existing || candidate.epoch > existing.epoch || (
+        candidate.epoch === existing.epoch && candidate.rowNumber > existing.rowNumber
+      )) {
+        latestByKey[key] = candidate;
+      }
+    }
+
+    const items = Object.keys(latestByKey).map(function (key) {
+      const item = latestByKey[key];
+      const rowObj = rowToObject_(headers, item.row);
+      rowObj._epoch = item.epoch;
+      rowObj._rowNumber = item.rowNumber;
+      return rowObj;
+    });
+
+    items.sort(function (a, b) {
+      const partySort = normalizeString(a.PartyName || a.partyName).localeCompare(normalizeString(b.PartyName || b.partyName));
+      if (partySort !== 0) {
+        return partySort;
+      }
+      const categorySort = normalizeString(a.Category || a.category).localeCompare(normalizeString(b.Category || b.category));
+      if (categorySort !== 0) {
+        return categorySort;
+      }
+      return normalizeString(a.Product || a.product).localeCompare(normalizeString(b.Product || b.product));
+    });
+
+    for (let j = 0; j < items.length; j += 1) {
+      delete items[j]._epoch;
+      delete items[j]._rowNumber;
+    }
+
+    return {
+      refKey: 'SHOW_ALL_RATES',
+      header: {
+        RefKey: 'SHOW_ALL_RATES',
+        PartyName: 'All Parties',
+        ActionTag: 'OWNER_APPROVED',
+        SnapshotDateTime: nowIso(),
+        ItemCount: items.length
+      },
       items: items,
       itemCount: items.length
     };
@@ -1407,6 +1508,7 @@ var LogService = (function () {
     saveRateBatch: saveRateBatch,
     getPartySnapshots: getPartySnapshots,
     getSnapshotByRef: getSnapshotByRef,
+    getAllLatestRates: getAllLatestRates,
     getPartyLatestHistory: getPartyLatestHistory,
     rebuildPartyItemLatestIndex: rebuildPartyItemLatestIndex,
     buildHeaderRow: buildHeaderRow,
