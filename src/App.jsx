@@ -345,9 +345,10 @@ function App() {
       displayedProducts,
       activeSnapshotMap,
       getRowKey: rateEditor.getRowKey,
-      settings
+      settings,
+      selectedParty
     });
-  }, [displayedProducts, activeSnapshotMap, rateEditor.getRowKey, settings]);
+  }, [displayedProducts, activeSnapshotMap, rateEditor.getRowKey, settings, selectedParty]);
 
   const handleCopyRates = useCallback(async () => {
     saveFlow.clearFeedback();

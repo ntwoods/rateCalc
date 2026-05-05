@@ -101,11 +101,13 @@ export function buildOwnerApprovedExportRows({
   displayedProducts = [],
   activeSnapshotMap = {},
   getRowKey,
-  settings = {}
+  settings = {},
+  selectedParty = ''
 }) {
   const extraRows = [];
   const paidRows = [];
   const parties = new Set();
+  const selectedPartyKey = normalizeText(selectedParty).toLowerCase();
 
   displayedProducts.forEach((product) => {
     const rowKey = typeof getRowKey === 'function'
@@ -117,6 +119,10 @@ export function buildOwnerApprovedExportRows({
     }
 
     const partyName = normalizeText(snapshotItem.partyName || product?.partyName);
+    if (selectedPartyKey && partyName.toLowerCase() !== selectedPartyKey) {
+      return;
+    }
+
     if (partyName) {
       parties.add(partyName);
     }
