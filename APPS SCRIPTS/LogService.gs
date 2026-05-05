@@ -961,7 +961,9 @@ var LogService = (function () {
     };
   }
 
-  function getAllLatestRates() {
+  function getAllLatestRates(partyName) {
+    const requestedParty = normalizeString(partyName);
+    const requestedPartyKey = normalizeKey(requestedParty);
     const itemSheet = getSheetOrThrow(CONFIG.SHEETS.RATE_LOG_ITEMS);
     const itemValues = getAllValues(itemSheet);
     if (itemValues.length <= 1) {
@@ -969,7 +971,7 @@ var LogService = (function () {
         refKey: 'SHOW_ALL_RATES',
         header: {
           RefKey: 'SHOW_ALL_RATES',
-          PartyName: 'All Parties',
+          PartyName: requestedParty || 'All Parties',
           ActionTag: 'OWNER_APPROVED',
           SnapshotDateTime: nowIso(),
           ItemCount: 0
@@ -995,6 +997,9 @@ var LogService = (function () {
       const category = normalizeString(readByIdx_(row, idxCategory));
       const product = normalizeString(readByIdx_(row, idxProduct));
       if (isBlank(partyName) || isBlank(category) || isBlank(product)) {
+        continue;
+      }
+      if (!isBlank(requestedPartyKey) && normalizeKey(partyName) !== requestedPartyKey) {
         continue;
       }
 
@@ -1046,7 +1051,7 @@ var LogService = (function () {
       refKey: 'SHOW_ALL_RATES',
       header: {
         RefKey: 'SHOW_ALL_RATES',
-        PartyName: 'All Parties',
+        PartyName: requestedParty || 'All Parties',
         ActionTag: 'OWNER_APPROVED',
         SnapshotDateTime: nowIso(),
         ItemCount: items.length

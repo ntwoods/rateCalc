@@ -115,7 +115,7 @@ function handleGetSnapshotByRefRoute_(ctx) {
 
 function handleGetAllLatestRatesRoute_(ctx) {
   requireMethod_(ctx, 'GET', CONFIG.ACTIONS.GET_ALL_LATEST_RATES);
-  const data = LogService.getAllLatestRates();
+  const data = LogService.getAllLatestRates(readParam_(ctx, ['partyname', 'party_name', 'party']));
   return respondOk('All latest saved rates fetched.', data);
 }
 

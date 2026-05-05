@@ -171,6 +171,15 @@ function normalizeSnapshotItem(rawItem) {
   };
 }
 
+function partyMatches(item, selectedParty) {
+  const selected = String(selectedParty || '').trim().toLowerCase();
+  if (!selected) {
+    return true;
+  }
+  const party = String(readAny(item, ['PartyName', 'partyName'])).trim().toLowerCase();
+  return party === selected;
+}
+
 export function usePartyHistory({ selectedParty = '', selectedSnapshotRef = '' } = {}) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -265,8 +274,9 @@ export function usePartyHistory({ selectedParty = '', selectedSnapshotRef = '' }
 
     try {
       const isShowAllRates = refKey === SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES;
+      const partyName = String(selectedParty || '').trim();
       const result = isShowAllRates
-        ? await apiClient.get(API_ACTIONS.GET_ALL_LATEST_RATES)
+        ? await apiClient.get(API_ACTIONS.GET_ALL_LATEST_RATES, { partyName })
         : await apiClient.get(API_ACTIONS.GET_SNAPSHOT_BY_REF, { refKey });
       const payload = result?.data || {};
 
@@ -283,6 +293,7 @@ export function usePartyHistory({ selectedParty = '', selectedSnapshotRef = '' }
 
       const normalizedItems = Array.isArray(payload.items)
         ? payload.items
+            .filter((item) => !isShowAllRates || partyMatches(item, selectedParty))
             .map((item) => (isShowAllRates ? { ...item, _showAllRates: true } : item))
             .map(normalizeSnapshotItem)
             .filter(Boolean)
@@ -297,7 +308,7 @@ export function usePartyHistory({ selectedParty = '', selectedSnapshotRef = '' }
     } finally {
       setSnapshotLoading(false);
     }
-  }, [selectedSnapshotRef]);
+  }, [selectedSnapshotRef, selectedParty]);
 
   useEffect(() => {
     loadPartyHistory();
