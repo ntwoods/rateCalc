@@ -901,6 +901,11 @@
   width: 7.5%;
 }
 
+.rate-table th.col-brand,
+.rate-table td.col-brand {
+  width: 7%;
+}
+
 .rate-table th.col-after-special,
 .rate-table td.col-after-special {
   width: 8%;
@@ -965,6 +970,11 @@
   min-width: 58px;
   margin-left: auto;
   text-align: center;
+}
+
+.rate-table td.cell-brand .table-input {
+  width: 100%;
+  min-width: 78px;
 }
 
 .rate-table td.cell-owner-select {

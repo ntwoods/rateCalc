@@ -3,7 +3,8 @@ import { apiClient } from '../api/apiClient';
 import {
   API_ACTIONS,
   APP_MODES,
-  FINAL_ACTION_TAGS
+  FINAL_ACTION_TAGS,
+  SPECIAL_SNAPSHOT_REFS
 } from '../constants/appConfig';
 import { normalizeToken } from '../utils/keys';
 import {
@@ -31,7 +32,8 @@ function validateBeforeSave({
   rows,
   selectedParty,
   isAuthenticated,
-  signedInEmail
+  signedInEmail,
+  brandOnlyUpdate = false
 }) {
   if (!selectedParty) {
     return 'Select a party before saving.';
@@ -53,13 +55,16 @@ function validateBeforeSave({
     const categoryKey = normalizeToken(row.category);
     const disc = Number(row.normalized?.specialDiscPct ?? 0);
 
-    if (categoryDiscounts[categoryKey] === undefined) {
-      categoryDiscounts[categoryKey] = disc;
-    } else if (categoryDiscounts[categoryKey] !== disc) {
-      return `Category-level special discount mismatch found for ${row.category}.`;
+    if (!brandOnlyUpdate) {
+      if (categoryDiscounts[categoryKey] === undefined) {
+        categoryDiscounts[categoryKey] = disc;
+      } else if (categoryDiscounts[categoryKey] !== disc) {
+        return `Category-level special discount mismatch found for ${row.category}.`;
+      }
     }
 
     if (
+      !brandOnlyUpdate &&
       row.normalized?.cdMode === 'PERCENT' &&
       (row.normalized?.cdPercentMissing ||
         row.normalized?.cdPercentInvalid ||
@@ -68,8 +73,12 @@ function validateBeforeSave({
       return `Invalid CD % for ${row.product}. Fix CD % before save.`;
     }
 
-    if (row.calc?.finalRate === null || row.calc?.finalRate === undefined || row.calc?.invalidFinalRate) {
+    if (!brandOnlyUpdate && (row.calc?.finalRate === null || row.calc?.finalRate === undefined || row.calc?.invalidFinalRate)) {
       return `List price not available for ${row.product} in selected view.`;
+    }
+
+    if (type === 'owner' && !String(row.brand || '').trim()) {
+      return `Brand is required for ${row.product} before saving Owner Approved.`;
     }
   }
 
@@ -98,6 +107,7 @@ function buildRowComparisonSignature(row) {
     normalizeMode(row?.product),
     normalizeNumericSignature(row?.paymentTerms),
     normalizeNumericSignature(row?.sourceListPrice ?? row?.latestListPrice),
+    normalizeMode(row?.brand),
     normalizeNumericSignature(normalized.specialDiscPct),
     normalizeMode(normalized.gstMode),
     normalizeMode(normalized.freightMode),
@@ -117,6 +127,7 @@ function buildSnapshotComparisonSignature(snapshotItem) {
     normalizeMode(snapshotItem?.product),
     normalizeNumericSignature(snapshotItem?.paymentTerms),
     normalizeNumericSignature(snapshotItem?.latestListPrice),
+    normalizeMode(snapshotItem?.brand),
     normalizeNumericSignature(snapshotItem?.specialDiscPct),
     normalizeMode(snapshotItem?.gstMode),
     normalizeMode(snapshotItem?.freightMode),
@@ -208,13 +219,19 @@ export function useSaveFlow({
     const rows = type === 'owner'
       ? selectedRowsByType.ownerRows
       : selectedRowsByType.finalRows;
+    const brandOnlyUpdate = Boolean(
+      type === 'owner' &&
+      mode === APP_MODES.SNAPSHOT &&
+      selectedSnapshotRef === SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES
+    );
 
     const validationError = validateBeforeSave({
       type,
       rows,
       selectedParty,
       isAuthenticated,
-      signedInEmail
+      signedInEmail,
+      brandOnlyUpdate
     });
 
     if (validationError) {
@@ -237,7 +254,9 @@ export function useSaveFlow({
     selectedRowsByType,
     selectedParty,
     isAuthenticated,
-    signedInEmail
+    signedInEmail,
+    mode,
+    selectedSnapshotRef
   ]);
 
   const closeConfirm = useCallback(() => {
@@ -255,7 +274,15 @@ export function useSaveFlow({
     const sourceMode = mode === APP_MODES.SNAPSHOT ? 'SNAPSHOT' : 'FRESH';
     const type = confirmState.type;
     const adminSnapshotUpdateMode = Boolean(
-      isAdminUser && sourceMode === 'SNAPSHOT' && String(selectedSnapshotRef || '').trim()
+      isAdminUser &&
+      sourceMode === 'SNAPSHOT' &&
+      String(selectedSnapshotRef || '').trim() &&
+      selectedSnapshotRef !== SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES
+    );
+    const brandOnlyLatestUpdateMode = Boolean(
+      type === 'owner' &&
+      sourceMode === 'SNAPSHOT' &&
+      selectedSnapshotRef === SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES
     );
 
     if (
@@ -296,6 +323,10 @@ export function useSaveFlow({
     if (adminSnapshotUpdateMode) {
       payload.updateRefKey = selectedSnapshotRef;
       payload.requestUpdateExisting = true;
+    }
+
+    if (brandOnlyLatestUpdateMode) {
+      payload.brandOnlyLatestUpdate = true;
     }
 
     try {

@@ -15,6 +15,7 @@ function RateTableHeader({ tdPercent = 20, rateBasis = RATE_BASIS.LATEST }) {
         </th>
         <th className="col-wef">{showOldList ? 'Previous WEF' : 'Latest WEF'}</th>
         <th className="col-td-rate">{`TD (${tdPercent}%)`}</th>
+        <th className="col-brand">Brand</th>
         <th className="col-special-disc" data-tour="special-discount-column">
           <span className="th-two-line">Special Disc<br />%</span>
         </th>

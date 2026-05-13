@@ -91,6 +91,29 @@ var LogService = (function () {
       );
     }
 
+    const brandOnlyLatestUpdate = toBoolean_(
+      readAny_(rawPayload, ['brandOnlyLatestUpdate', 'BrandOnlyLatestUpdate', 'brandOnlyUpdate', 'BrandOnlyUpdate']),
+      false
+    );
+    if (brandOnlyLatestUpdate) {
+      if (resolvedActionTag !== CONFIG.ACTION_TAGS.OWNER_APPROVED) {
+        throw appError('BRAND_ONLY_REQUIRES_OWNER_ACTION', 'Brand-only update is allowed only for Owner Approved rows.', [
+          { field: 'actionTag', detail: resolvedActionTag }
+        ]);
+      }
+      if (sourceMode !== CONFIG.SOURCE_MODES.SNAPSHOT) {
+        throw appError('BRAND_ONLY_REQUIRES_SNAPSHOT', 'Brand-only update is allowed only from Show All Rates snapshot mode.', [
+          { field: 'sourceMode', detail: sourceMode }
+        ]);
+      }
+      return updatePartyItemBrandsOnly_({
+        partyName: partyName,
+        userEmail: userEmail,
+        actionTag: resolvedActionTag,
+        items: selectedItems
+      });
+    }
+
     const settings = MasterService.getSettingsMap();
     const requestedUpdateRefKey = normalizeString(
       readAny_(rawPayload, ['updateRefKey', 'UpdateRefKey', 'loadedRefKey', 'LoadedRefKey', 'targetRefKey', 'TargetRefKey'])
@@ -173,6 +196,7 @@ var LogService = (function () {
     try {
       appendRowsToSheet_(CONFIG.SHEETS.RATE_LOG_HEADER, CONFIG.WORKBOOK_SHEETS.RateLogHeader, [headerRow]);
       appendRowsToSheet_(CONFIG.SHEETS.RATE_LOG_ITEMS, CONFIG.WORKBOOK_SHEETS.RateLogItems, builtItems.rows);
+      const brandSummary = upsertPartyItemBrands(builtItems.brandEntries);
       const latestSummary = upsertPartyItemLatest(builtItems.latestEntries);
 
       return {
@@ -181,6 +205,7 @@ var LogService = (function () {
         actionTag: resolvedActionTag,
         itemCount: builtItems.summary.length,
         savedItems: builtItems.summary,
+        brandUpsert: brandSummary,
         latestUpsert: latestSummary
       };
     } finally {
@@ -210,7 +235,9 @@ var LogService = (function () {
     const rows = [];
     const summary = [];
     const latestEntries = [];
+    const brandEntries = [];
     const errors = [];
+    const requiresBrand = context.actionTag === CONFIG.ACTION_TAGS.OWNER_APPROVED;
 
     for (let i = 0; i < context.items.length; i += 1) {
       const rawItem = context.items[i] || {};
@@ -257,6 +284,15 @@ var LogService = (function () {
       const previousWEF = normalizeDateLikeToIsoDay_(readAny_(normalizedItem, ['previousWEF', 'PreviousWEF']));
       const ownerChecked = toBoolean_(readAny_(normalizedItem, ['ownerChecked', 'OwnerChecked']), false);
       const finalActionChecked = toBoolean_(readAny_(normalizedItem, ['finalActionChecked', 'FinalActionChecked']), false);
+      const brand = normalizeString(readAny_(normalizedItem, ['brand', 'Brand', 'brandName', 'BrandName']));
+      if (requiresBrand && isBlank(brand)) {
+        errors.push({
+          index: i,
+          field: 'brand',
+          detail: 'Brand is required for Owner Approved item: ' + product
+        });
+        continue;
+      }
 
       rows.push([
         context.refKey,
@@ -285,7 +321,8 @@ var LogService = (function () {
         netRatesCalc.finalRate,
         ownerChecked,
         finalActionChecked,
-        context.createdAt
+        context.createdAt,
+        brand
       ]);
 
       summary.push({
@@ -299,7 +336,8 @@ var LogService = (function () {
         cdMode: calc.cdMode,
         appliedCdPercent: calc.appliedCdPercent,
         finalRate: calc.finalRate,
-        netRates: netRatesCalc.finalRate
+        netRates: netRatesCalc.finalRate,
+        brand: brand
       });
 
       latestEntries.push({
@@ -317,8 +355,21 @@ var LogService = (function () {
         lastCDMode: calc.cdMode,
         lastCDPercent: calc.appliedCdPercent,
         lastLatestListPrice: round2(latestListPriceInput),
-        lastLatestWEF: latestWEF
+        lastLatestWEF: latestWEF,
+        lastBrand: brand
       });
+
+      if (!isBlank(brand)) {
+        brandEntries.push({
+          partyName: context.partyName,
+          category: category,
+          product: product,
+          brand: brand,
+          updatedAt: context.snapshotDateTime,
+          updatedBy: context.userEmail,
+          lastRefKey: context.refKey
+        });
+      }
     }
 
     if (errors.length > 0) {
@@ -331,7 +382,8 @@ var LogService = (function () {
     return {
       rows: rows,
       summary: summary,
-      latestEntries: latestEntries
+      latestEntries: latestEntries,
+      brandEntries: brandEntries
     };
   }
 
@@ -529,6 +581,7 @@ var LogService = (function () {
         itemSheet.getRange(startRow, 1, appendRows.length, itemHeaders.length).setValues(appendRows);
       }
 
+      const brandSummary = upsertPartyItemBrands(context.builtItems.brandEntries);
       const latestSummary = upsertPartyItemLatest(context.builtItems.latestEntries);
 
       return {
@@ -537,6 +590,7 @@ var LogService = (function () {
         actionTag: context.actionTag,
         itemCount: context.builtItems.summary.length,
         savedItems: context.builtItems.summary,
+        brandUpsert: brandSummary,
         latestUpsert: latestSummary,
         updateMode: 'UPDATED_EXISTING',
         updated: true,
@@ -621,6 +675,7 @@ var LogService = (function () {
     const idxNetRates = getHeaderIndex_(map, fallbackMap, ['NetRates']);
     const idxOwnerChecked = getHeaderIndex_(map, fallbackMap, ['OwnerChecked']);
     const idxFinalChecked = getHeaderIndex_(map, fallbackMap, ['FinalActionChecked']);
+    const idxBrand = getHeaderIndex_(map, fallbackMap, ['Brand']);
 
     return [
       normalizeKey(readByIdx_(row, idxParty)),
@@ -645,7 +700,8 @@ var LogService = (function () {
       normalizeNumericSignature_(readByIdx_(row, idxFinalRate), false),
       normalizeNumericSignature_(readByIdx_(row, idxNetRates), true),
       toBoolean_(readByIdx_(row, idxOwnerChecked), false) ? '1' : '0',
-      toBoolean_(readByIdx_(row, idxFinalChecked), false) ? '1' : '0'
+      toBoolean_(readByIdx_(row, idxFinalChecked), false) ? '1' : '0',
+      normalizeKey(readByIdx_(row, idxBrand))
     ].join('|');
   }
 
@@ -658,6 +714,350 @@ var LogService = (function () {
       return normalizeString(value);
     }
     return String(round2(num));
+  }
+
+  function updatePartyItemBrandsOnly_(context) {
+    const entries = [];
+    const errors = [];
+    const now = nowIso();
+    const latestActionByKey = getLatestRateActionMapForParty_(context.partyName);
+
+    for (let i = 0; i < context.items.length; i += 1) {
+      const item = context.items[i] || {};
+      const category = normalizeString(readAny_(item, ['category', 'Category']));
+      const product = normalizeString(readAny_(item, ['product', 'Product']));
+      const brand = normalizeString(readAny_(item, ['brand', 'Brand', 'brandName', 'BrandName']));
+      const itemActionTag = normalizeActionTag_(readAny_(item, ['actionTag', 'ActionTag']));
+
+      if (isBlank(category) || isBlank(product)) {
+        errors.push({
+          index: i,
+          field: 'category/product',
+          detail: 'Both category and product are required for Brand update.'
+        });
+        continue;
+      }
+      if (!isBlank(itemActionTag) && itemActionTag !== CONFIG.ACTION_TAGS.OWNER_APPROVED) {
+        errors.push({
+          index: i,
+          field: 'actionTag',
+          detail: 'Brand can be updated from Show All Rates only for Owner Approved rows.'
+        });
+        continue;
+      }
+      if (latestActionByKey[buildLatestKey_(context.partyName, category, product)] !== CONFIG.ACTION_TAGS.OWNER_APPROVED) {
+        errors.push({
+          index: i,
+          field: 'actionTag',
+          detail: 'Latest saved rate is not Owner Approved for item: ' + product
+        });
+        continue;
+      }
+      if (isBlank(brand)) {
+        errors.push({
+          index: i,
+          field: 'brand',
+          detail: 'Brand is required for item: ' + product
+        });
+        continue;
+      }
+
+      entries.push({
+        partyName: context.partyName,
+        category: category,
+        product: product,
+        brand: brand,
+        updatedAt: now,
+        updatedBy: context.userEmail,
+        lastRefKey: normalizeString(readAny_(item, ['refKey', 'RefKey', 'lastRefKey', 'LastRefKey']))
+      });
+    }
+
+    if (errors.length > 0) {
+      throw appError('INVALID_BRAND_UPDATE_ITEMS', 'One or more selected Brand updates are invalid.', errors);
+    }
+    if (entries.length === 0) {
+      throw appError('NO_BRAND_UPDATE_ITEMS', 'No valid selected items available for Brand update.');
+    }
+
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(30000);
+    } catch (err) {
+      throw appError('WRITE_LOCK_TIMEOUT', 'Could not acquire write lock. Please retry.', [
+        { detail: err && err.message ? err.message : 'Lock timeout.' }
+      ]);
+    }
+
+    try {
+      const brandSummary = upsertPartyItemBrands(entries);
+      const latestBrandSummary = updatePartyItemLatestBrands_(entries);
+      return {
+        refKey: 'BRAND_ONLY',
+        partyName: context.partyName,
+        actionTag: context.actionTag,
+        itemCount: entries.length,
+        savedItems: entries.map(function (entry) {
+          return {
+            category: entry.category,
+            product: entry.product,
+            brand: entry.brand
+          };
+        }),
+        brandUpsert: brandSummary,
+        latestBrandUpdate: latestBrandSummary,
+        brandOnlyUpdate: true
+      };
+    } finally {
+      try {
+        lock.releaseLock();
+      } catch (ignore) {
+        // no-op
+      }
+    }
+  }
+
+  function getLatestRateActionMapForParty_(partyName) {
+    const sheet = getSheetOrThrow(CONFIG.SHEETS.RATE_LOG_ITEMS);
+    const values = getAllValues(sheet);
+    const out = {};
+    if (values.length <= 1) {
+      return out;
+    }
+
+    const headers = values[0];
+    const map = createNormalizedHeaderMapFromRow_(headers);
+    const fallbackMap = createNormalizedHeaderMapFromRow_(CONFIG.WORKBOOK_SHEETS.RateLogItems);
+    const idxParty = getHeaderIndex_(map, fallbackMap, ['PartyName']);
+    const idxCategory = getHeaderIndex_(map, fallbackMap, ['Category']);
+    const idxProduct = getHeaderIndex_(map, fallbackMap, ['Product']);
+    const idxActionTag = getHeaderIndex_(map, fallbackMap, ['ActionTag']);
+    const idxSnapshot = getHeaderIndex_(map, fallbackMap, ['SnapshotDateTime']);
+    const idxCreatedAt = getHeaderIndex_(map, fallbackMap, ['CreatedAt']);
+    const targetKey = normalizeKey(partyName);
+    const latestByKey = {};
+
+    for (let i = 1; i < values.length; i += 1) {
+      const row = values[i];
+      const rowParty = normalizeString(readByIdx_(row, idxParty));
+      const category = normalizeString(readByIdx_(row, idxCategory));
+      const product = normalizeString(readByIdx_(row, idxProduct));
+      if (isBlank(rowParty) || isBlank(category) || isBlank(product)) {
+        continue;
+      }
+      if (normalizeKey(rowParty) !== targetKey) {
+        continue;
+      }
+
+      const key = buildLatestKey_(rowParty, category, product);
+      const epoch = maxEpoch_([
+        readByIdx_(row, idxSnapshot),
+        readByIdx_(row, idxCreatedAt)
+      ]);
+      const candidate = {
+        actionTag: normalizeActionTag_(readByIdx_(row, idxActionTag)),
+        epoch: epoch,
+        rowNumber: i + 1
+      };
+      const existing = latestByKey[key];
+      if (!existing || candidate.epoch > existing.epoch || (
+        candidate.epoch === existing.epoch && candidate.rowNumber > existing.rowNumber
+      )) {
+        latestByKey[key] = candidate;
+      }
+    }
+
+    const keys = Object.keys(latestByKey);
+    for (let j = 0; j < keys.length; j += 1) {
+      out[keys[j]] = latestByKey[keys[j]].actionTag;
+    }
+    return out;
+  }
+
+  function upsertPartyItemBrands(entries) {
+    const safeEntries = Array.isArray(entries) ? entries.filter(function (entry) {
+      return entry && !isBlank(entry.brand);
+    }) : [];
+    if (safeEntries.length === 0) {
+      return { inserted: 0, updated: 0 };
+    }
+
+    const headers = CONFIG.WORKBOOK_SHEETS.PartyItemBrands;
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName(CONFIG.SHEETS.PARTY_ITEM_BRANDS);
+    if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.SHEETS.PARTY_ITEM_BRANDS);
+    }
+    ensureSheetHeader_(sheet, headers);
+
+    const allValues = getAllValues(sheet);
+    const dataRows = allValues.length > 1 ? allValues.slice(1) : [];
+    const headerMap = createHeaderMap_(headers);
+    const existingByKey = {};
+
+    for (let i = 0; i < dataRows.length; i += 1) {
+      const row = dataRows[i];
+      const key = buildLatestKey_(
+        row[headerMap.PartyName],
+        row[headerMap.Category],
+        row[headerMap.Product]
+      );
+      if (!isBlank(key)) {
+        existingByKey[key] = { rowIndex: i };
+      }
+    }
+
+    const newRows = [];
+    let updated = 0;
+    let hasDataRowMutations = false;
+
+    for (let j = 0; j < safeEntries.length; j += 1) {
+      const entry = safeEntries[j];
+      const key = buildLatestKey_(entry.partyName, entry.category, entry.product);
+      if (isBlank(key)) {
+        continue;
+      }
+
+      const row = buildPartyItemBrandRow_(entry, headers);
+      const existing = existingByKey[key];
+      if (!existing) {
+        newRows.push(row);
+        existingByKey[key] = { rowIndex: dataRows.length + newRows.length - 1 };
+        continue;
+      }
+
+      dataRows[existing.rowIndex] = row;
+      updated += 1;
+      hasDataRowMutations = true;
+    }
+
+    if (hasDataRowMutations && dataRows.length > 0) {
+      sheet.getRange(2, 1, dataRows.length, headers.length).setValues(dataRows);
+    }
+
+    if (newRows.length > 0) {
+      const startRow = sheet.getLastRow() + 1;
+      sheet.getRange(startRow, 1, newRows.length, headers.length).setValues(newRows);
+    }
+
+    return {
+      inserted: newRows.length,
+      updated: updated
+    };
+  }
+
+  function buildPartyItemBrandRow_(entry, headers) {
+    const map = createHeaderMap_(headers);
+    const row = new Array(headers.length).fill('');
+    row[map.PartyName] = normalizeString(entry.partyName);
+    row[map.Product] = normalizeString(entry.product);
+    row[map.Category] = normalizeString(entry.category);
+    row[map.Brand] = normalizeString(entry.brand);
+    row[map.UpdatedAt] = normalizeString(entry.updatedAt);
+    row[map.UpdatedBy] = normalizeString(entry.updatedBy);
+    row[map.LastRefKey] = normalizeString(entry.lastRefKey);
+    return row;
+  }
+
+  function getPartyItemBrandMap_(partyName) {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(CONFIG.SHEETS.PARTY_ITEM_BRANDS);
+    if (!sheet) {
+      return {};
+    }
+    const values = getAllValues(sheet);
+    const out = {};
+    if (values.length <= 1) {
+      return out;
+    }
+
+    const headers = values[0];
+    const map = createNormalizedHeaderMapFromRow_(headers);
+    const fallbackMap = createNormalizedHeaderMapFromRow_(CONFIG.WORKBOOK_SHEETS.PartyItemBrands);
+    const idxParty = getHeaderIndex_(map, fallbackMap, ['PartyName']);
+    const idxCategory = getHeaderIndex_(map, fallbackMap, ['Category']);
+    const idxProduct = getHeaderIndex_(map, fallbackMap, ['Product']);
+    const idxBrand = getHeaderIndex_(map, fallbackMap, ['Brand']);
+    const targetKey = normalizeKey(partyName);
+
+    for (let i = 1; i < values.length; i += 1) {
+      const row = values[i];
+      const rowParty = normalizeString(readByIdx_(row, idxParty));
+      const category = normalizeString(readByIdx_(row, idxCategory));
+      const product = normalizeString(readByIdx_(row, idxProduct));
+      const brand = normalizeString(readByIdx_(row, idxBrand));
+      if (isBlank(rowParty) || isBlank(category) || isBlank(product) || isBlank(brand)) {
+        continue;
+      }
+      if (!isBlank(targetKey) && normalizeKey(rowParty) !== targetKey) {
+        continue;
+      }
+      out[buildLatestKey_(rowParty, category, product)] = brand;
+    }
+
+    return out;
+  }
+
+  function applyBrandMapToItemObject_(item, brandMap, fallbackPartyName) {
+    if (!item || typeof item !== 'object') {
+      return item;
+    }
+
+    const partyName = normalizeString(item.PartyName || item.partyName || fallbackPartyName);
+    const category = normalizeString(item.Category || item.category);
+    const product = normalizeString(item.Product || item.product);
+    const key = buildLatestKey_(partyName, category, product);
+    const savedBrand = brandMap[key];
+    if (!isBlank(savedBrand)) {
+      item.Brand = savedBrand;
+      item.brand = savedBrand;
+      item.LastBrand = savedBrand;
+      item.lastBrand = savedBrand;
+    }
+    return item;
+  }
+
+  function updatePartyItemLatestBrands_(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return { updated: 0 };
+    }
+
+    const sheet = getSheetOrThrow(CONFIG.SHEETS.PARTY_ITEM_LATEST);
+    const headers = CONFIG.WORKBOOK_SHEETS.PartyItemLatest;
+    ensureSheetHeader_(sheet, headers);
+    const allValues = getAllValues(sheet);
+    if (allValues.length <= 1) {
+      return { updated: 0 };
+    }
+
+    const dataRows = allValues.slice(1);
+    const map = createHeaderMap_(headers);
+    const brandByKey = {};
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      const key = buildLatestKey_(entry.partyName, entry.category, entry.product);
+      if (!isBlank(key) && !isBlank(entry.brand)) {
+        brandByKey[key] = normalizeString(entry.brand);
+      }
+    }
+
+    let updated = 0;
+    for (let j = 0; j < dataRows.length; j += 1) {
+      const row = dataRows[j];
+      const key = buildLatestKey_(row[map.PartyName], row[map.Category], row[map.Product]);
+      const brand = brandByKey[key];
+      if (isBlank(brand) || normalizeString(row[map.LastBrand]) === brand) {
+        continue;
+      }
+      row[map.LastBrand] = brand;
+      updated += 1;
+    }
+
+    if (updated > 0) {
+      sheet.getRange(2, 1, dataRows.length, headers.length).setValues(dataRows);
+    }
+
+    return { updated: updated };
   }
 
   function upsertPartyItemLatest(entries) {
@@ -933,6 +1333,12 @@ var LogService = (function () {
       }
     }
 
+    const snapshotPartyName = normalizeString(headerRecord.PartyName || headerRecord.partyName);
+    const brandMap = getPartyItemBrandMap_(snapshotPartyName);
+    for (let b = 0; b < items.length; b += 1) {
+      applyBrandMapToItemObject_(items[b], brandMap, snapshotPartyName);
+    }
+
     items.sort(function (a, b) {
       if (b._epoch !== a._epoch) {
         return b._epoch - a._epoch;
@@ -1030,6 +1436,11 @@ var LogService = (function () {
       return rowObj;
     });
 
+    const brandMap = getPartyItemBrandMap_(requestedParty);
+    for (let b = 0; b < items.length; b += 1) {
+      applyBrandMapToItemObject_(items[b], brandMap, requestedParty);
+    }
+
     items.sort(function (a, b) {
       const partySort = normalizeString(a.PartyName || a.partyName).localeCompare(normalizeString(b.PartyName || b.partyName));
       if (partySort !== 0) {
@@ -1088,6 +1499,7 @@ var LogService = (function () {
     const idxProduct = getHeaderIndex_(map, fallbackMap, ['Product']);
 
     const targetKey = normalizeKey(requestedParty);
+    const brandMap = getPartyItemBrandMap_(requestedParty);
     const items = [];
 
     for (let i = 1; i < values.length; i += 1) {
@@ -1103,7 +1515,9 @@ var LogService = (function () {
         continue;
       }
 
-      items.push(rowToObject_(headers, row));
+      const itemObj = rowToObject_(headers, row);
+      applyBrandMapToItemObject_(itemObj, brandMap, requestedParty);
+      items.push(itemObj);
     }
 
     items.sort(function (a, b) {
@@ -1171,6 +1585,7 @@ var LogService = (function () {
         const idxCdPercent = getHeaderIndex_(map, fallbackMap, ['CDPercent']);
         const idxLatestListPrice = getHeaderIndex_(map, fallbackMap, ['LatestListPrice']);
         const idxLatestWEF = getHeaderIndex_(map, fallbackMap, ['LatestWEF']);
+        const idxBrand = getHeaderIndex_(map, fallbackMap, ['Brand']);
         const idxCreatedAt = getHeaderIndex_(map, fallbackMap, ['CreatedAt']);
 
         for (let i = 1; i < values.length; i += 1) {
@@ -1212,6 +1627,7 @@ var LogService = (function () {
             lastCDPercent: round2(toSafeNumber(readByIdx_(row, idxCdPercent), 0)),
             lastLatestListPrice: round2(toSafeNumber(readByIdx_(row, idxLatestListPrice), 0)),
             lastLatestWEF: normalizeDateLikeToIsoDay_(readByIdx_(row, idxLatestWEF)),
+            lastBrand: normalizeString(readByIdx_(row, idxBrand)),
             _epoch: epoch
           };
 
@@ -1280,6 +1696,7 @@ var LogService = (function () {
     row[map.LastCDPercent] = round2(toSafeNumber(entry.lastCDPercent, 0));
     row[map.LastLatestListPrice] = round2(toSafeNumber(entry.lastLatestListPrice, 0));
     row[map.LastLatestWEF] = normalizeDateLikeToIsoDay_(entry.lastLatestWEF);
+    row[map.LastBrand] = normalizeString(entry.lastBrand);
 
     return row;
   }
@@ -1519,6 +1936,7 @@ var LogService = (function () {
     buildHeaderRow: buildHeaderRow,
     buildItemRows: buildItemRows,
     upsertPartyItemLatest: upsertPartyItemLatest,
+    upsertPartyItemBrands: upsertPartyItemBrands,
     getSelectedItemsForAction: getSelectedItemsForAction
   };
 })();

@@ -148,9 +148,25 @@ function App() {
     }));
   }, [showAllRatesActive, products, snapshotItems]);
 
+  const brandByRowKey = useMemo(() => {
+    const map = {};
+    const source = showAllRatesActive ? snapshotItemsByRowKey : latestHistoryByRowKey;
+
+    Object.keys(source || {}).forEach((rowKey) => {
+      const item = source[rowKey];
+      const brand = String(item?.brand ?? item?.lastBrand ?? '').trim();
+      if (brand) {
+        map[rowKey] = brand;
+      }
+    });
+
+    return map;
+  }, [showAllRatesActive, snapshotItemsByRowKey, latestHistoryByRowKey]);
+
   const rateEditor = useRateEditor({
     products: gridProducts,
     settings,
+    brandByRowKey,
     ownerBulkByCategoryEnabled: true
   });
 
@@ -540,7 +556,7 @@ function App() {
             isAuthenticated={auth.isAuthenticated}
             isAdminUser={isAdminUser}
             savingType={saveFlow.savingType}
-            disabled={toolbarDisabled || productsLoading || snapshotLoading || showAllRatesActive}
+            disabled={toolbarDisabled || productsLoading || snapshotLoading}
             onSaveOwner={handleOpenOwnerConfirm}
             onCopyRates={handleCopyRates}
             showCopyRates={snapshotActive}

@@ -13,6 +13,7 @@ function getDefaultNetCd(settings) {
 
 function createDefaultRowInput(defaultNetCd, categoryDefaults = {}) {
   return {
+    brandInput: categoryDefaults.brandInput ?? '',
     specialDiscPctInput: categoryDefaults.specialDiscPctInput ?? '0',
     gstMode: categoryDefaults.gstMode ?? GST_MODES.EXTRA,
     freightMode: categoryDefaults.freightMode ?? FREIGHT_MODES.FOR,
@@ -41,6 +42,7 @@ function toBool(value) {
 export function useRateEditor({
   products = [],
   settings = {},
+  brandByRowKey = {},
   ownerBulkByCategoryEnabled = false
 } = {}) {
   const [rowInputsByKey, setRowInputsByKey] = useState({});
@@ -469,6 +471,10 @@ export function useRateEditor({
     updateField(rowKey, getCategoryKey(category), 'cdPercentInput', String(value ?? ''));
   }, [updateField, getCategoryKey]);
 
+  const setBrand = useCallback((rowKey, category, value) => {
+    updateField(rowKey, getCategoryKey(category), 'brandInput', String(value ?? ''));
+  }, [updateField, getCategoryKey]);
+
   const clearSelections = useCallback((type, rowKeys) => {
     const field = type === 'final' ? 'finalActionChecked' : 'ownerChecked';
     const scoped = Array.isArray(rowKeys) && rowKeys.length > 0 ? new Set(rowKeys) : null;
@@ -600,6 +606,7 @@ export function useRateEditor({
 
         const patched = {
           ...current,
+          brandInput: toText(snapshot.brand ?? snapshot.Brand ?? current.brandInput),
           specialDiscPctInput: toText(snapshot.specialDiscPct),
           gstMode: toText(snapshot.gstMode || current.gstMode).toUpperCase(),
           freightMode: toText(snapshot.freightMode || current.freightMode).toUpperCase(),
@@ -610,6 +617,7 @@ export function useRateEditor({
         };
 
         const isSame =
+          current.brandInput === patched.brandInput &&
           current.specialDiscPctInput === patched.specialDiscPctInput &&
           current.gstMode === patched.gstMode &&
           current.freightMode === patched.freightMode &&
@@ -628,6 +636,42 @@ export function useRateEditor({
     });
   }, [ensureRow, getCategoryKey]);
 
+  useEffect(() => {
+    if (!Array.isArray(products) || products.length === 0) {
+      return;
+    }
+
+    setRowInputsByKey((prev) => {
+      let changed = false;
+      let next = prev;
+
+      products.forEach((product) => {
+        const rowKey = getRowKey(product);
+        const brandValue = toText(brandByRowKey?.[rowKey]);
+        if (!brandValue) {
+          return;
+        }
+
+        const categoryKey = getCategoryKey(product.category);
+        const current = ensureRow(next, rowKey, categoryKey);
+        if (toText(current.brandInput) === brandValue) {
+          return;
+        }
+
+        if (!changed) {
+          next = { ...prev };
+          changed = true;
+        }
+        next[rowKey] = {
+          ...current,
+          brandInput: brandValue
+        };
+      });
+
+      return changed ? next : prev;
+    });
+  }, [products, brandByRowKey, getRowKey, getCategoryKey, ensureRow]);
+
   const rowMetaByKey = useMemo(() => {
     const meta = {};
 
@@ -635,6 +679,7 @@ export function useRateEditor({
       const rowKey = getRowKey(product);
       const categoryKey = getCategoryKey(product.category);
       const rowInput = rowInputsByKey[rowKey] || createDefaultRowInput(defaultNetCd, {
+        brandInput: brandByRowKey?.[rowKey],
         specialDiscPctInput: categoryDiscountByKey[categoryKey],
         gstMode: categoryGstModeByKey[categoryKey],
         freightMode: categoryFreightModeByKey[categoryKey],
@@ -661,7 +706,8 @@ export function useRateEditor({
     categoryDiscountByKey,
     categoryGstModeByKey,
     categoryFreightModeByKey,
-    categoryCdModeByKey
+    categoryCdModeByKey,
+    brandByRowKey
   ]);
 
   const selectedCounts = useMemo(() => {
@@ -691,6 +737,7 @@ export function useRateEditor({
       setFreightMode,
       setCdMode,
       setCdPercent,
+      setBrand,
       setOwnerChecked,
       setFinalActionChecked,
       clearSelections,
@@ -702,6 +749,7 @@ export function useRateEditor({
     setFreightMode,
     setCdMode,
     setCdPercent,
+    setBrand,
     setOwnerChecked,
     setFinalActionChecked,
     clearSelections,

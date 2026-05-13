@@ -3,7 +3,8 @@ import {
   CD_MODES,
   FREIGHT_MODES,
   GST_MODES,
-  RATE_BASIS
+  RATE_BASIS,
+  SPECIAL_SNAPSHOT_REFS
 } from '../constants/appConfig';
 import { calculateNetRates, calculateRowRate } from '../utils/calcEngine';
 import { formatCurrencyINR, formatDate, safeText } from '../utils/formatters';
@@ -57,7 +58,12 @@ function RateRow({
 
   const inSnapshotMode = mode === 'SNAPSHOT';
   const snapshotActive = inSnapshotMode && Boolean(selectedSnapshotRef);
+  const showAllRatesActive = selectedSnapshotRef === SPECIAL_SNAPSHOT_REFS.SHOW_ALL_RATES;
   const disableRateFields = snapshotActive && !canEditSnapshotConditions;
+  const savedBrand = snapshotActive ? snapshotItem?.brand : historyItem?.lastBrand;
+  const hasSavedBrand = String(savedBrand || '').trim() !== '';
+  const canEditShowAllBrand = showAllRatesActive && normalizeActionTag(snapshotItem?.actionTag) === 'OWNER_APPROVED';
+  const disableBrandField = (snapshotActive && !canEditShowAllBrand) || (!snapshotActive && hasSavedBrand);
   const displayMaster = snapshotActive && snapshotItem
     ? {
         paymentTerms: snapshotItem.paymentTerms || product.paymentTerms,
@@ -157,6 +163,17 @@ function RateRow({
       </td>
 
       <td className="cell-money col-td-rate">{calc.tdRate === null ? '-' : formatCurrencyINR(calc.tdRate)}</td>
+
+      <td className="cell-brand col-brand">
+        <input
+          className="table-input"
+          type="text"
+          value={rowInput?.brandInput ?? ''}
+          disabled={disableBrandField}
+          onChange={(event) => actions.setBrand(rowKey, product.category, event.target.value)}
+          aria-label={`Brand for ${product.product}`}
+        />
+      </td>
 
       <td className="cell-special-disc col-special-disc">
         <input

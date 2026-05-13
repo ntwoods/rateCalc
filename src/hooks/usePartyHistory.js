@@ -95,7 +95,8 @@ function normalizeHistoryItem(rawItem) {
     lastCDMode: String(readAny(rawItem, ['LastCDMode', 'lastCDMode'])).trim(),
     lastCDPercent: toNumberOrZero(readAny(rawItem, ['LastCDPercent', 'lastCDPercent'])),
     lastLatestListPrice: toNumberOrZero(readAny(rawItem, ['LastLatestListPrice', 'lastLatestListPrice'])),
-    lastLatestWEF: String(readAny(rawItem, ['LastLatestWEF', 'lastLatestWEF'])).trim()
+    lastLatestWEF: String(readAny(rawItem, ['LastLatestWEF', 'lastLatestWEF'])).trim(),
+    lastBrand: String(readAny(rawItem, ['LastBrand', 'lastBrand', 'Brand', 'brand'])).trim()
   };
 }
 
@@ -142,6 +143,7 @@ function normalizeSnapshotItem(rawItem) {
   return {
     rowKey: effectiveRowKey,
     baseRowKey: rowKey,
+    refKey: String(readAny(rawItem, ['RefKey', 'refKey'])).trim(),
     partyName,
     category,
     product,
@@ -166,6 +168,7 @@ function normalizeSnapshotItem(rawItem) {
     afterSpecialDiscRate: toOptionalNumber(readAny(rawItem, ['AfterSpecialDiscRate', 'afterSpecialDiscRate'], null)),
     finalRate: toNumberOrZero(readAny(rawItem, ['FinalRate', 'finalRate'])),
     netRates: toOptionalNumber(readAny(rawItem, ['NetRates', 'netRates'], null)),
+    brand: String(readAny(rawItem, ['Brand', 'brand', 'LastBrand', 'lastBrand'])).trim(),
     ownerChecked: toBoolean(readAny(rawItem, ['OwnerChecked', 'ownerChecked'])),
     finalActionChecked: toBoolean(readAny(rawItem, ['FinalActionChecked', 'finalActionChecked']))
   };

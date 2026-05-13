@@ -145,6 +145,8 @@ export function useRateGridView({
 
       const row = {
         rowKey,
+        actionTag: snapshotItem?.actionTag || '',
+        refKey: snapshotItem?.refKey || snapshotItem?.lastRefKey || '',
         category: product.category,
         product: product.product,
         paymentTerms: resolvedMaster.paymentTerms,
@@ -154,6 +156,7 @@ export function useRateGridView({
         previousWEF: resolvedMaster.previousWEF,
         sourceListPrice,
         sourceWEF,
+        brand: rowMeta.rowInput?.brandInput ?? '',
         ownerChecked: Boolean(rowMeta.rowInput?.ownerChecked),
         finalActionChecked: Boolean(rowMeta.rowInput?.finalActionChecked),
         normalized: rowMeta.normalized,

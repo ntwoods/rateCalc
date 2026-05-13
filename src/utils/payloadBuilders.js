@@ -17,6 +17,9 @@ function buildItemPayload(row) {
   return {
     category: toText(row.category),
     product: toText(row.product),
+    actionTag: toText(row.actionTag).toUpperCase(),
+    refKey: toText(row.refKey),
+    brand: toText(row.brand),
     paymentTerms: toNumber(row.paymentTerms, 0),
     latestListPrice: toNumber(row.sourceListPrice ?? row.latestListPrice, 0),
     latestWEF: toText(row.sourceWEF ?? row.latestWEF),
@@ -84,6 +87,7 @@ export function buildConfirmationRows(selectedRows = []) {
       rowKey: row.rowKey,
       category: toText(row.category),
       product: toText(row.product),
+      brand: toText(row.brand),
       finalRate: toNumber(calc.finalRate, 0),
       specialDiscPct: toNumber(normalized.specialDiscPct, 0),
       summary: `${gst}/${freight}/${cd}`

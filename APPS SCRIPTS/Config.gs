@@ -45,6 +45,7 @@ const SHEETS = Object.freeze({
   RATE_LOG_HEADER: 'RateLogHeader',
   RATE_LOG_ITEMS: 'RateLogItems',
   PARTY_ITEM_LATEST: 'PartyItemLatest',
+  PARTY_ITEM_BRANDS: 'PartyItemBrands',
   USERS: 'Users',
   SYSTEM_META: 'SystemMeta',
   API_LOG: 'API_Log'
@@ -75,14 +76,17 @@ const CONFIG = Object.freeze({
       'GSTPercent', 'GSTAmount',
       'FinalRate', 'NetRates',
       'OwnerChecked', 'FinalActionChecked',
-      'CreatedAt'
+      'CreatedAt', 'Brand'
     ]),
     PartyItemLatest: Object.freeze([
       'PartyName', 'Product', 'Category',
       'LastRefKey', 'LastActionTag', 'LastTimestamp', 'LastUserEmail',
       'LastFinalRate',
       'LastSpecialDiscPct', 'LastGSTMode', 'LastFreightMode', 'LastCDMode', 'LastCDPercent',
-      'LastLatestListPrice', 'LastLatestWEF'
+      'LastLatestListPrice', 'LastLatestWEF', 'LastBrand'
+    ]),
+    PartyItemBrands: Object.freeze([
+      'PartyName', 'Product', 'Category', 'Brand', 'UpdatedAt', 'UpdatedBy', 'LastRefKey'
     ]),
     Users: Object.freeze(['Email', 'Name', 'Active', 'Role', 'Notes']),
     SystemMeta: Object.freeze(['Key', 'Value', 'UpdatedAt'])
